@@ -427,6 +427,11 @@ function destroyEnemy(enemy) {
         updateScore(10);
     }
     
+    // Update zombie kill count
+    if (typeof updateZombieKills === 'function') {
+        updateZombieKills();
+    }
+    
     // Update global reference
     window.enemies = enemies;
     

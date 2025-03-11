@@ -7,6 +7,7 @@ let clock;
 let gameActive = false;
 let gamePaused = false; // New variable to track pause state
 let score = 0;
+let zombieKills = 0; // New variable to track zombie kills
 let health = 100;
 let sun, skybox;
 
@@ -30,6 +31,7 @@ function init() {
     window.camera = camera;
     window.renderer = renderer;
     window.scene = scene;
+    window.zombieKills = zombieKills; // Make zombieKills globally accessible
     
     // Create lighting
     const ambientLight = new THREE.AmbientLight(0x404040);
@@ -57,8 +59,40 @@ function init() {
     window.addEventListener('resize', onWindowResize, false);
     window.addEventListener('keydown', handleKeyDown, false); // Add keydown listener for pause
     
+    // Make updateScore function globally accessible
+    window.updateScore = updateScore;
+    window.updateZombieKills = updateZombieKills;
+    
     // Start game loop
     animate();
+}
+
+// Function to update the score when zombies are killed
+function updateScore(points) {
+    // Increase the score
+    score += points;
+    
+    // Update the score display in the UI
+    const scoreElement = document.getElementById('score');
+    if (scoreElement) {
+        scoreElement.textContent = score;
+    }
+    
+    console.log("Score updated: " + score);
+}
+
+// Function to update the zombie kill count
+function updateZombieKills() {
+    // Increase the zombie kill count
+    zombieKills++;
+    
+    // Update the zombie kill count display in the UI
+    const zombieKillsElement = document.getElementById('zombie-kills');
+    if (zombieKillsElement) {
+        zombieKillsElement.textContent = zombieKills;
+    }
+    
+    console.log("Zombie kills updated: " + zombieKills);
 }
 
 // Create a realistic environment with skybox and terrain
@@ -461,6 +495,7 @@ function startGame() {
     
     // Reset game state
     score = 0;
+    zombieKills = 0; // Reset zombie kills
     health = 3;
     
     // Update UI
