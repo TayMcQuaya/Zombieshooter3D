@@ -5,6 +5,7 @@ let scene, camera, renderer;
 let floor, arena;
 let clock;
 let gameActive = false;
+let gamePaused = false; // New variable to track pause state
 let score = 0;
 let health = 100;
 let sun, skybox;
@@ -15,8 +16,8 @@ function init() {
     scene = new THREE.Scene();
     scene.background = new THREE.Color(0x87CEEB); // Sky blue background
     
-    // Create camera
-    camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+    // Create camera with a closer near clipping plane to see the weapon
+    camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.01, 1000);
     camera.position.y = 1.7; // Player height
     
     // Create renderer
@@ -47,11 +48,10 @@ function init() {
     
     // Add event listeners
     window.addEventListener('resize', onWindowResize, false);
+    window.addEventListener('keydown', handleKeyDown, false); // Add keydown listener for pause
     
     // Start game loop
     animate();
-
-    
 }
 
 // Create a realistic environment with skybox and terrain
@@ -321,46 +321,156 @@ function onWindowResize() {
     renderer.setSize(window.innerWidth, window.innerHeight);
 }
 
+// Handle key down events for game control
+function handleKeyDown(event) {
+    // Check for Escape key to toggle pause
+    if (event.key === 'Escape' && gameActive) {
+        togglePause();
+    }
+}
+
+// Toggle game pause state
+function togglePause() {
+    // Only allow pausing if the game is active
+    if (!gameActive) return;
+    
+    gamePaused = !gamePaused;
+    console.log("Game pause toggled:", gamePaused);
+    
+    if (gamePaused) {
+        // Pause the game
+        document.exitPointerLock();
+        showPauseMenu();
+        if (typeof pauseBackgroundMusic === 'function') {
+            pauseBackgroundMusic();
+        }
+    } else {
+        // Resume the game
+        document.body.requestPointerLock();
+        hidePauseMenu();
+        if (typeof resumeBackgroundMusic === 'function') {
+            resumeBackgroundMusic();
+        }
+    }
+}
+
+// Show pause menu
+function showPauseMenu() {
+    // Check if pause menu already exists
+    let pauseMenu = document.getElementById('pause-menu');
+    
+    if (!pauseMenu) {
+        // Create pause menu
+        pauseMenu = document.createElement('div');
+        pauseMenu.id = 'pause-menu';
+        pauseMenu.style.position = 'fixed';
+        pauseMenu.style.top = '50%';
+        pauseMenu.style.left = '50%';
+        pauseMenu.style.transform = 'translate(-50%, -50%)';
+        pauseMenu.style.backgroundColor = 'rgba(0, 0, 0, 0.8)';
+        pauseMenu.style.color = 'white';
+        pauseMenu.style.padding = '20px';
+        pauseMenu.style.borderRadius = '10px';
+        pauseMenu.style.textAlign = 'center';
+        pauseMenu.style.zIndex = '1000';
+        
+        // Add pause menu content
+        pauseMenu.innerHTML = `
+            <h2>GAME PAUSED</h2>
+            <button id="resume-button" style="font-size: 20px; padding: 10px 20px; margin: 10px; background-color: #4CAF50; color: white; border: none; border-radius: 5px; cursor: pointer;">RESUME</button>
+            <button id="quit-button" style="font-size: 20px; padding: 10px 20px; margin: 10px; background-color: #f44336; color: white; border: none; border-radius: 5px; cursor: pointer;">QUIT</button>
+            <div style="margin-top: 20px;">
+                <p>Press ESC to resume</p>
+            </div>
+        `;
+        
+        document.body.appendChild(pauseMenu);
+        
+        // Add event listeners to buttons
+        document.getElementById('resume-button').addEventListener('click', togglePause);
+        document.getElementById('quit-button').addEventListener('click', () => {
+            location.reload();
+        });
+    } else {
+        pauseMenu.style.display = 'block';
+    }
+}
+
+// Hide pause menu
+function hidePauseMenu() {
+    const pauseMenu = document.getElementById('pause-menu');
+    if (pauseMenu) {
+        pauseMenu.style.display = 'none';
+    }
+}
+
 // Main game loop
 function animate() {
     requestAnimationFrame(animate);
     
-    if (gameActive) {
-        // Update player movement and shooting
-        updatePlayer();
-        
-        // Update enemies
-        updateEnemies();
-        
-        // Check game state (health, score)
-        updateGameState();
+    // Skip updates if game is not active or is paused
+    if (!gameActive || gamePaused) {
+        renderer.render(scene, camera);
+        return;
     }
     
-    // Render the scene
+    // Update player movement and shooting
+    updatePlayer();
+    
+    // Update enemies
+    updateEnemies();
+    
+    // Check game state (health, score)
+    updateGameState();
+    
+    // Render scene
     renderer.render(scene, camera);
 }
 
 // Start the game
 function startGame() {
-    // Request pointer lock
-    document.body.requestPointerLock();
+    // Set game as active
+    gameActive = true;
+    gamePaused = false; // Ensure game starts unpaused
     
     // Hide start screen
-    document.getElementById('start-screen').style.display = 'none';
+    const startScreen = document.getElementById('start-screen');
+    if (startScreen) {
+        startScreen.style.display = 'none';
+    }
     
     // Reset game state
     score = 0;
     health = 3;
-    gameActive = true;
-    
-    // Clear any existing enemies
-    clearEnemies();
-    
-    // Start spawning enemies
-    startEnemySpawner();
     
     // Update UI
-    updateUI();
+    if (typeof updateUI === 'function') {
+        updateUI();
+    }
+    
+    // Start enemy spawner
+    if (typeof startEnemySpawner === 'function') {
+        startEnemySpawner();
+    }
+    
+    // Play background music
+    if (typeof playBackgroundMusic === 'function') {
+        playBackgroundMusic();
+    }
+    
+    // Ensure weapon model is created
+    if (typeof createWeaponModel === 'function') {
+        // Small delay to ensure camera is ready
+        setTimeout(() => {
+            createWeaponModel();
+            console.log("Weapon model created on game start");
+        }, 100);
+    }
+    
+    // Request pointer lock for mouse control
+    document.body.requestPointerLock();
+    
+    console.log("Game started, active:", gameActive, "paused:", gamePaused);
 }
 
 // End the game

@@ -69,58 +69,80 @@ function initPlayer() {
 
 // Create weapon model (pistol and hand)
 function createWeaponModel() {
+    console.log("Creating weapon model...");
+    
+    // Remove any existing weapon model
+    if (weaponModel) {
+        camera.remove(weaponModel);
+    }
+    
     // Create a group to hold the weapon and hand
     weaponModel = new THREE.Group();
     
     // Create hand
-    const handGeometry = new THREE.BoxGeometry(0.2, 0.3, 0.6);
+    const handGeometry = new THREE.BoxGeometry(0.3, 0.4, 0.8);
     const handMaterial = new THREE.MeshLambertMaterial({ color: 0xFFD6C4 }); // Skin color
     handModel = new THREE.Mesh(handGeometry, handMaterial);
-    handModel.position.set(0.25, -0.3, -0.3);
+    handModel.position.set(0.3, -0.5, -0.4);
     weaponModel.add(handModel);
     
-    // Create pistol body
-    const pistolBodyGeometry = new THREE.BoxGeometry(0.2, 0.25, 0.5);
+    // Create pistol body - LARGER
+    const pistolBodyGeometry = new THREE.BoxGeometry(0.3, 0.35, 0.7);
     const pistolMaterial = new THREE.MeshLambertMaterial({ color: 0x333333 }); // Dark gray
     const pistolBody = new THREE.Mesh(pistolBodyGeometry, pistolMaterial);
-    pistolBody.position.set(0.25, -0.15, -0.6);
+    pistolBody.position.set(0.3, -0.3, -0.7);
     weaponModel.add(pistolBody);
     
-    // Create pistol barrel
-    const barrelGeometry = new THREE.CylinderGeometry(0.05, 0.05, 0.3);
+    // Create pistol barrel - LARGER
+    const barrelGeometry = new THREE.CylinderGeometry(0.08, 0.08, 0.5);
     const barrelMaterial = new THREE.MeshLambertMaterial({ color: 0x222222 }); // Darker gray
     const barrel = new THREE.Mesh(barrelGeometry, barrelMaterial);
     barrel.rotation.x = Math.PI / 2; // Rotate to point forward
-    barrel.position.set(0.25, -0.1, -0.9);
+    barrel.position.set(0.3, -0.25, -1.1);
     weaponModel.add(barrel);
     
-    // Create pistol grip
-    const gripGeometry = new THREE.BoxGeometry(0.15, 0.3, 0.2);
+    // Create pistol grip - LARGER
+    const gripGeometry = new THREE.BoxGeometry(0.25, 0.4, 0.3);
     const gripMaterial = new THREE.MeshLambertMaterial({ color: 0x111111 }); // Almost black
     const grip = new THREE.Mesh(gripGeometry, gripMaterial);
-    grip.position.set(0.25, -0.35, -0.5);
+    grip.position.set(0.3, -0.5, -0.6);
     weaponModel.add(grip);
     
     // Create pistol trigger
-    const triggerGeometry = new THREE.BoxGeometry(0.05, 0.1, 0.05);
+    const triggerGeometry = new THREE.BoxGeometry(0.08, 0.15, 0.08);
     const triggerMaterial = new THREE.MeshLambertMaterial({ color: 0x444444 });
     const trigger = new THREE.Mesh(triggerGeometry, triggerMaterial);
-    trigger.position.set(0.25, -0.25, -0.4);
+    trigger.position.set(0.3, -0.4, -0.5);
     weaponModel.add(trigger);
     
+    // Add a sight on top of the pistol
+    const sightGeometry = new THREE.BoxGeometry(0.05, 0.05, 0.05);
+    const sightMaterial = new THREE.MeshLambertMaterial({ color: 0xFFFFFF });
+    const sight = new THREE.Mesh(sightGeometry, sightMaterial);
+    sight.position.set(0.3, -0.15, -0.7);
+    weaponModel.add(sight);
+    
     // Position the weapon model in front of the camera
-    weaponModel.position.set(0, -0.2, -0.5);
+    // MUCH closer to the camera and positioned for better visibility
+    weaponModel.position.set(0.2, -0.3, -0.3);
     
     // Add the weapon model to the camera
     camera.add(weaponModel);
+    
+    // Log to confirm weapon model was created
+    console.log("Weapon model created and added to camera");
 }
 
 // Update weapon position for bobbing and swaying effects
 function updateWeaponPosition() {
-    if (!weaponModel) return;
+    if (!weaponModel) {
+        console.log("Weapon model not found, recreating...");
+        createWeaponModel();
+        return;
+    }
     
-    // Reset position
-    weaponModel.position.set(0, -0.2, -0.5);
+    // Reset position - UPDATED position
+    weaponModel.position.set(0.2, -0.3, -0.3);
     weaponModel.rotation.set(0, 0, 0);
     
     // Add weapon bob when moving

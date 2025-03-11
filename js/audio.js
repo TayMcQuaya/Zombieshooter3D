@@ -4,6 +4,7 @@
 let soundEnabled = true;
 let musicEnabled = true;
 let backgroundMusic = null;
+let musicWasEnabledBeforePause = true;
 
 // Initialize audio system
 function initAudio() {
@@ -46,6 +47,11 @@ function initAudio() {
     // Set up audio control buttons
     document.getElementById('toggle-sound').addEventListener('click', toggleSound);
     document.getElementById('toggle-music').addEventListener('click', toggleMusic);
+    
+    // Export audio functions to global scope
+    window.playSound = playSound;
+    window.pauseBackgroundMusic = pauseBackgroundMusic;
+    window.resumeBackgroundMusic = resumeBackgroundMusic;
 }
 
 // Toggle sound effects
@@ -66,6 +72,31 @@ function toggleMusic() {
     }
 }
 
+// Pause background music (for game pause)
+function pauseBackgroundMusic() {
+    if (!backgroundMusic) return;
+    
+    // Store current music state
+    musicWasEnabledBeforePause = musicEnabled;
+    
+    // Pause the music if it was playing
+    if (musicEnabled) {
+        backgroundMusic.pause();
+    }
+}
+
+// Resume background music (after game pause)
+function resumeBackgroundMusic() {
+    if (!backgroundMusic) return;
+    
+    // Only resume if music was enabled before pausing
+    if (musicWasEnabledBeforePause && musicEnabled) {
+        backgroundMusic.play().catch(e => {
+            console.warn('Could not resume background music:', e);
+        });
+    }
+}
+
 // Play background music
 function playBackgroundMusic() {
     if (!musicEnabled || !backgroundMusic) return;
@@ -75,6 +106,34 @@ function playBackgroundMusic() {
     backgroundMusic.play().catch(e => {
         console.warn('Could not play background music:', e);
     });
+}
+
+// Generic sound player function
+function playSound(soundType) {
+    if (!soundEnabled) return;
+    
+    switch(soundType) {
+        case 'shoot':
+            playShootSound();
+            break;
+        case 'explosion':
+            playExplosionSound();
+            break;
+        case 'damage':
+            playDamageSound();
+            break;
+        case 'wave':
+            playWaveSound();
+            break;
+        case 'wave_cleared':
+            playWaveClearedSound();
+            break;
+        case 'jump':
+            playJumpSound();
+            break;
+        default:
+            console.warn('Unknown sound type:', soundType);
+    }
 }
 
 // Play shoot sound
