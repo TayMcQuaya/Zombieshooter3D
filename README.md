@@ -1,98 +1,98 @@
-# Neon Strike
+# 🧟 Zombie Survival
 
-A fast-paced, minimalist 3D first-person shooter with neon aesthetics for the web browser.
+A fast-paced, browser-based first-person shooter where you fight against waves of zombies in a survival arena.
 
-![Neon Strike Game](assets/textures/screenshot.png)
+## 🎮 How to Play
 
-## Overview
+1. Click the "START GAME" button
+2. Use your mouse to aim
+3. Shoot zombies with left-click
+4. Move around using WASD keys
+5. Try to survive as long as possible!
 
-**Neon Strike** is a simple yet addictive browser-based FPS where you blast glowing enemies in a neon-lit arena while chasing a high score. The game features:
+## 🎯 Controls
 
-- Vibrant neon visuals
-- Fast-paced gameplay
-- Increasing difficulty with each wave
-- Shareable scores for social media
+- **W**: Move forward
+- **S**: Move backward
+- **A**: Strafe left
+- **D**: Strafe right
+- **Mouse**: Look around/aim
+- **Left Click**: Shoot
+- **Space**: Jump
 
-**Tagline:** "Survive the glow. Share the score."
+## 🎲 Game Features
 
-## How to Play
+- First-person shooter mechanics
+- Wave-based zombie spawning
+- Health system with 3 hearts
+- Score tracking
+- Environmental objects (trees, rocks)
+- Day-time arena setting
+- Share your high score
 
-1. Open `index.html` in a modern web browser (Chrome, Firefox, Edge recommended)
-2. Click the "START GAME" button
-3. Use the following controls:
-   - **WASD**: Move around
-   - **Mouse**: Aim
-   - **Left Click**: Shoot
-   - **Spacebar**: Jump
-4. Survive as long as possible by shooting enemies before they reach you
-5. Each enemy destroyed gives you 10 points
-6. Clearing a wave gives you a 50-point bonus
-7. Share your score on social media when the game ends
+## 💀 Enemies
 
-## Game Mechanics
+- Zombies take 3 hits to kill
+- They glow red when hit
+- Each kill gives you 10 points
+- Wave clear bonus: 50 points
+- Zombies deal damage on contact
+- Each wave gets progressively harder
 
-- Enemies spawn in waves from the edges of the arena
-- Each wave increases in difficulty with more enemies
-- Enemies move toward the player
-- Player loses health when enemies make contact
-- Game ends when player health reaches zero
+## 🛠️ Technical Details
 
-## Technical Details
+Built using:
+- Three.js for 3D graphics
+- Howler.js for sound effects
+- Pure JavaScript for game logic
+- HTML5 and CSS3 for UI
 
-### Built With
+## 🌟 Features
 
-- **HTML5**: Game structure and canvas
-- **CSS3**: Styling and visual effects
-- **JavaScript**: Game logic and rendering
-- **Three.js**: 3D graphics rendering (loaded via CDN)
-- **Howler.js**: Sound effects and music (loaded via CDN)
+- Realistic 3D environment
+- Dynamic lighting and shadows
+- Particle effects for impacts
+- Sound effects and visual feedback
+- Progressive difficulty
+- Score sharing system
 
-### Project Structure
+## 🎵 Audio
 
-```
-NeonStrike/
-├── index.html        # Main entry point
-├── styles.css        # UI styling
-├── js/
-│   ├── main.js       # Game setup, loop, and rendering
-│   ├── player.js     # Player movement and shooting
-│   ├── enemy.js      # Enemy spawning and AI
-│   ├── ui.js         # Score, health, and overlays
-│   └── audio.js      # Sound management
-├── assets/
-│   ├── sounds/       # Game sound effects
-│   └── textures/     # Game textures
-└── lib/              # Third-party libraries
-```
+- Shooting sounds
+- Zombie hit effects
+- Death sounds
+- Wave clear celebration
 
-## Development
-
-This game was built as a simple demonstration of browser-based 3D gaming. To modify or extend the game:
+## 🔧 Installation
 
 1. Clone the repository
-2. Make changes to the JavaScript files in the `js/` directory
-3. Open `index.html` to test your changes
-4. No build process required - it's all vanilla JavaScript!
+2. Open index.html in a modern web browser
+3. No build process required!
 
-> **Note**: The game uses CDN links to load Three.js and Howler.js libraries. An internet connection is required to run the game. If you prefer to use local files, you can download the libraries and update the script tags in index.html.
+## 🌐 Browser Support
 
-## Future Enhancements
+Works best in:
+- Chrome
+- Firefox
+- Edge
+- Safari
 
-- Power-ups and special weapons
-- Multiple enemy types with different behaviors
-- Level progression with unique arenas
-- Local high score leaderboard
-- Mobile touch controls
+## 💻 Development
 
-## Credits
+Want to contribute? Great!
 
-- Game concept and development: [Your Name]
-- Inspired by classic arcade shooters and modern neon aesthetics
+1. Fork the repo
+2. Create your feature branch
+3. Commit your changes
+4. Push to the branch
+5. Create a new Pull Request
 
-## License
+## 📝 License
 
 This project is licensed under the MIT License - see the LICENSE file for details.
 
----
+## 🙏 Credits
 
-Enjoy the game and aim for a high score! Remember to share your achievements with friends. 
+- Three.js - 3D graphics library
+- Howler.js - Audio library
+- Font Awesome - Icons 
