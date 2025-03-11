@@ -96,3 +96,47 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 - Three.js - 3D graphics library
 - Howler.js - Audio library
 - Font Awesome - Icons 
+
+## Sound Effect Resources
+
+Here are some excellent resources for game sound effects:
+
+1. **Freesound.org** - https://freesound.org/
+   * A large collaborative database of audio snippets, samples, recordings, etc.
+   * Many sounds are Creative Commons licensed
+   * Great for weapon sounds, zombie noises, and environmental effects
+
+2. **OpenGameArt.org** - https://opengameart.org/art-search-advanced?field_art_type_tid%5B%5D=13
+   * Free game assets including sound effects
+   * Includes complete sound packs for games
+
+3. **ZapSplat** - https://www.zapsplat.com/
+   * Over 150,000 free sound effects
+   * Great quality and organization
+   * Free account with attribution
+
+4. **Soundsnap** - https://www.soundsnap.com/
+   * Premium sound effects library (paid)
+   * Professional quality sounds
+
+5. **GameSounds.xyz** - https://gamesounds.xyz/
+   * Royalty-free music and sound effects specifically for games
+
+6. **Kenney Game Assets** - https://kenney.nl/assets?q=audio
+   * Free game assets including sound packs
+   * Public domain sounds that don't require attribution
+
+7. **Mixkit** - https://mixkit.co/free-sound-effects/
+   * Free sound effects with a simple license
+   * High-quality sounds organized by category
+
+For this zombie shooter game, look for categories like:
+* Weapon sounds (gunshots, reloads)
+* Zombie/monster growls and attacks
+* Impact sounds (bullets hitting objects/zombies)
+* Player damage sounds
+* UI sounds (menu clicks, game start/end)
+* Ambient sounds (wind, environment)
+* Music (horror, action, suspense)
+
+When using sound effects, always check the licensing terms to ensure you're using them according to their requirements. 

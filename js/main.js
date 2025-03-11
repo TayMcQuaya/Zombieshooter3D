@@ -25,7 +25,11 @@ function init() {
     renderer.setSize(window.innerWidth, window.innerHeight);
     renderer.shadowMap.enabled = true;
     document.body.appendChild(renderer.domElement);
-
+    
+    // Expose camera and renderer to global scope for debugging
+    window.camera = camera;
+    window.renderer = renderer;
+    window.scene = scene;
     
     // Create lighting
     const ambientLight = new THREE.AmbientLight(0x404040);
@@ -404,14 +408,21 @@ function hidePauseMenu() {
     }
 }
 
-// Main game loop
+// Animate loop
 function animate() {
+    // Request next frame
     requestAnimationFrame(animate);
     
     // Skip updates if game is not active or is paused
     if (!gameActive || gamePaused) {
         renderer.render(scene, camera);
         return;
+    }
+    
+    // Check if weapon model exists and create it if not
+    if (gameActive && typeof createWeaponModel === 'function' && camera.children.length === 0) {
+        console.log("No weapon model found, creating one");
+        createWeaponModel();
     }
     
     // Update player movement and shooting
@@ -448,6 +459,11 @@ function startGame() {
         updateUI();
     }
     
+    // Ensure weapon is created
+    if (typeof createWeaponModel === 'function') {
+        createWeaponModel();
+    }
+    
     // Start enemy spawner
     if (typeof startEnemySpawner === 'function') {
         startEnemySpawner();
@@ -456,15 +472,6 @@ function startGame() {
     // Play background music
     if (typeof playBackgroundMusic === 'function') {
         playBackgroundMusic();
-    }
-    
-    // Ensure weapon model is created
-    if (typeof createWeaponModel === 'function') {
-        // Small delay to ensure camera is ready
-        setTimeout(() => {
-            createWeaponModel();
-            console.log("Weapon model created on game start");
-        }, 100);
     }
     
     // Request pointer lock for mouse control

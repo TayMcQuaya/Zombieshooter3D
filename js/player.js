@@ -50,6 +50,8 @@ let previousQuaternion = new THREE.Quaternion();
 
 // Initialize player
 function initPlayer() {
+    console.log("Initializing player...");
+    
     // Set up key listeners for movement
     document.addEventListener('keydown', onKeyDown);
     document.addEventListener('keyup', onKeyUp);
@@ -61,76 +63,95 @@ function initPlayer() {
     document.addEventListener('mousedown', onMouseDown);
     
     // Initialize last position
+    lastPosition = new THREE.Vector3();
     lastPosition.copy(camera.position);
     
-    // Create weapon model
+    // Export player functions to global scope for debugging
+    window.createWeaponModel = createWeaponModel;
+    window.updateWeaponPosition = updateWeaponPosition;
+    
+    // Create the weapon model
     createWeaponModel();
+    
+    // Also create it with a delay to ensure it's visible
+    setTimeout(() => {
+        console.log("Creating weapon model again with delay to ensure visibility");
+        createWeaponModel();
+    }, 300);
+    
+    console.log("Player initialized, camera:", camera);
 }
 
 // Create weapon model (pistol and hand)
 function createWeaponModel() {
-    console.log("Creating weapon model...");
+    console.log("Creating enhanced weapon model - should be very visible");
     
     // Remove any existing weapon model
     if (weaponModel) {
         camera.remove(weaponModel);
     }
     
-    // Create a group to hold the weapon and hand
+    // Create a group to hold the weapon
     weaponModel = new THREE.Group();
     
-    // Create hand
-    const handGeometry = new THREE.BoxGeometry(0.3, 0.4, 0.8);
-    const handMaterial = new THREE.MeshLambertMaterial({ color: 0xFFD6C4 }); // Skin color
-    handModel = new THREE.Mesh(handGeometry, handMaterial);
-    handModel.position.set(0.3, -0.5, -0.4);
-    weaponModel.add(handModel);
+    // Create a dramatically larger, brightly colored pistol
+
+    // Main body - bright NEON RED box (much larger)
+    const bodyGeo = new THREE.BoxGeometry(0.5, 0.3, 0.8);
+    const bodyMat = new THREE.MeshBasicMaterial({ color: 0xFF0000 });
+    const body = new THREE.Mesh(bodyGeo, bodyMat);
+    body.position.set(0.3, -0.3, -0.7);
+    weaponModel.add(body);
     
-    // Create pistol body - LARGER
-    const pistolBodyGeometry = new THREE.BoxGeometry(0.3, 0.35, 0.7);
-    const pistolMaterial = new THREE.MeshLambertMaterial({ color: 0x333333 }); // Dark gray
-    const pistolBody = new THREE.Mesh(pistolBodyGeometry, pistolMaterial);
-    pistolBody.position.set(0.3, -0.3, -0.7);
-    weaponModel.add(pistolBody);
-    
-    // Create pistol barrel - LARGER
-    const barrelGeometry = new THREE.CylinderGeometry(0.08, 0.08, 0.5);
-    const barrelMaterial = new THREE.MeshLambertMaterial({ color: 0x222222 }); // Darker gray
-    const barrel = new THREE.Mesh(barrelGeometry, barrelMaterial);
+    // Barrel - BRIGHT BLUE cylinder (larger)
+    const barrelGeo = new THREE.CylinderGeometry(0.08, 0.08, 0.6);
+    const barrelMat = new THREE.MeshBasicMaterial({ color: 0x00FFFF });
+    const barrel = new THREE.Mesh(barrelGeo, barrelMat);
     barrel.rotation.x = Math.PI / 2; // Rotate to point forward
-    barrel.position.set(0.3, -0.25, -1.1);
+    barrel.position.set(0.3, -0.3, -1.1);
     weaponModel.add(barrel);
     
-    // Create pistol grip - LARGER
-    const gripGeometry = new THREE.BoxGeometry(0.25, 0.4, 0.3);
-    const gripMaterial = new THREE.MeshLambertMaterial({ color: 0x111111 }); // Almost black
-    const grip = new THREE.Mesh(gripGeometry, gripMaterial);
-    grip.position.set(0.3, -0.5, -0.6);
-    weaponModel.add(grip);
+    // Handle - BRIGHT YELLOW box (larger)
+    const handleGeo = new THREE.BoxGeometry(0.3, 0.5, 0.3);
+    const handleMat = new THREE.MeshBasicMaterial({ color: 0xFFFF00 });
+    const handle = new THREE.Mesh(handleGeo, handleMat);
+    handle.position.set(0.3, -0.6, -0.7);
+    weaponModel.add(handle);
     
-    // Create pistol trigger
-    const triggerGeometry = new THREE.BoxGeometry(0.08, 0.15, 0.08);
-    const triggerMaterial = new THREE.MeshLambertMaterial({ color: 0x444444 });
-    const trigger = new THREE.Mesh(triggerGeometry, triggerMaterial);
-    trigger.position.set(0.3, -0.4, -0.5);
-    weaponModel.add(trigger);
-    
-    // Add a sight on top of the pistol
-    const sightGeometry = new THREE.BoxGeometry(0.05, 0.05, 0.05);
-    const sightMaterial = new THREE.MeshLambertMaterial({ color: 0xFFFFFF });
-    const sight = new THREE.Mesh(sightGeometry, sightMaterial);
-    sight.position.set(0.3, -0.15, -0.7);
+    // Add a very bright green sphere as a sight (much larger)
+    const sightGeo = new THREE.SphereGeometry(0.08);
+    const sightMat = new THREE.MeshBasicMaterial({ color: 0x00FF00 });
+    const sight = new THREE.Mesh(sightGeo, sightMat);
+    sight.position.set(0.3, -0.2, -0.7);
     weaponModel.add(sight);
     
+    // Add a hand (pink cube)
+    const handGeo = new THREE.BoxGeometry(0.3, 0.3, 0.3);
+    const handMat = new THREE.MeshBasicMaterial({ color: 0xFF69B4 });
+    const hand = new THREE.Mesh(handGeo, handMat);
+    hand.position.set(0.3, -0.7, -0.5);
+    weaponModel.add(hand);
+    
     // Position the weapon model in front of the camera
-    // MUCH closer to the camera and positioned for better visibility
-    weaponModel.position.set(0.2, -0.3, -0.3);
+    // Position it VERY close and high in view to be impossible to miss
+    weaponModel.position.set(0.3, 0, -0.5);
+    
+    // Make it larger overall
+    weaponModel.scale.set(1.5, 1.5, 1.5);
+    
+    // Disable frustum culling to ensure it's always rendered
+    weaponModel.traverse(function(object) {
+        if (object.isMesh) {
+            object.frustumCulled = false;
+        }
+    });
     
     // Add the weapon model to the camera
     camera.add(weaponModel);
     
-    // Log to confirm weapon model was created
-    console.log("Weapon model created and added to camera");
+    console.log("Enhanced weapon model created and added to camera:", weaponModel);
+    
+    return weaponModel;
 }
 
 // Update weapon position for bobbing and swaying effects
@@ -141,9 +162,15 @@ function updateWeaponPosition() {
         return;
     }
     
-    // Reset position - UPDATED position
-    weaponModel.position.set(0.2, -0.3, -0.3);
+    // Log weapon visibility status to help with debugging
+    console.log("Weapon model update - position:", weaponModel.position, "visible in scene:", camera.children.includes(weaponModel));
+    
+    // Reset position to our new more visible position
+    weaponModel.position.set(0.3, 0, -0.5);
     weaponModel.rotation.set(0, 0, 0);
+    
+    // Make sure scale is maintained
+    weaponModel.scale.set(1.5, 1.5, 1.5);
     
     // Add weapon bob when moving
     if (moveState.forward || moveState.backward || moveState.left || moveState.right) {
@@ -457,42 +484,61 @@ function shoot() {
     }
     
     const bulletGeo = new THREE.CylinderGeometry(0.05, 0.05, 0.3);
-    const bulletMat = new THREE.MeshLambertMaterial({ color: 0xFFD700 });
+    const bulletMat = new THREE.MeshBasicMaterial({ color: 0xFFD700 });
     const bullet = new THREE.Mesh(bulletGeo, bulletMat);
     
-    // Get the barrel position in world space
-    const barrelPosition = new THREE.Vector3(0.25, -0.1, -0.9);
-    barrelPosition.applyMatrix4(weaponModel.matrixWorld);
+    // Position bullet at barrel tip if weapon exists, otherwise at camera
+    let bulletStartPosition;
+    if (weaponModel) {
+        // Find the barrel in the weapon model
+        let barrelTip = new THREE.Vector3(0.3, -0.4, -1.0); // Default position
+        
+        // Apply weapon model's world matrix to get the barrel tip in world space
+        barrelTip.applyMatrix4(weaponModel.matrixWorld);
+        
+        // Set bullet start position to barrel tip
+        bulletStartPosition = barrelTip.clone();
+        bullet.position.copy(barrelTip);
+    } else {
+        // Fallback to camera position with offset
+        bulletStartPosition = camera.position.clone();
+        const bulletOffset = new THREE.Vector3(0, 0, -0.5);
+        bulletOffset.applyQuaternion(camera.quaternion);
+        bullet.position.copy(camera.position).add(bulletOffset);
+        bulletStartPosition.add(bulletOffset);
+    }
     
-    // Position bullet at barrel position
-    bullet.position.copy(barrelPosition);
+    // Create a raycaster from the camera center (where crosshair is)
+    const raycaster = new THREE.Raycaster();
+    // Use 0,0 as the normalized device coordinates (center of the screen where the crosshair is)
+    raycaster.setFromCamera(new THREE.Vector2(0, 0), camera);
     
-    // Set bullet rotation to match camera
-    bullet.quaternion.copy(camera.quaternion);
-    bullet.rotateX(Math.PI / 2);
+    // Get the exact direction from the raycaster
+    const direction = raycaster.ray.direction.clone().normalize();
+    
+    // Set bullet rotation to align with the ray direction
+    bullet.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), direction);
     
     // Create projectile object with velocity
-    const direction = new THREE.Vector3(0, 0, -1);
-    direction.applyQuaternion(camera.quaternion);
-    direction.normalize();
-    
     const projectile = {
         mesh: bullet,
         velocity: direction.multiplyScalar(PROJECTILE_SPEED),
         created: now
     };
     
-    // Add to scene and projectiles array
+    // Add bullet to scene and projectiles array
     scene.add(bullet);
     projectiles.push(projectile);
     
-    // Create muzzle flash at barrel position
-    createMuzzleFlash(barrelPosition);
+    // Create muzzle flash effect
+    createMuzzleFlash(bulletStartPosition);
     
     // Play sound
     if (typeof playSound === 'function') {
         playSound('shoot');
     }
+    
+    console.log("Shot fired, projectiles count:", projectiles.length);
 }
 
 // Create muzzle flash effect
