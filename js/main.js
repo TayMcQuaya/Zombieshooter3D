@@ -298,15 +298,20 @@ function createRock(x, y, z) {
     const rock = new THREE.Mesh(rockGeo, rockMat);
     
     rock.position.set(x, y + size / 2, z);
+    rock.rotation.y = Math.random() * Math.PI * 2;
+    rock.rotation.z = Math.random() * 0.5 - 0.25;
     
-    // Add collision data
+    // Add collision data with proper radius
     rock.userData = {
         isCollidable: true,
-        radius: size * 0.8  // Reduced to be closer to visual size
+        radius: size * 1.2  // Increased from 0.8 to ensure collisions work
     };
     
     scene.add(rock);
     window.environmentObjects.push(rock);
+    
+    // Debug log to verify rock is added to environment objects
+    console.log("Created rock with radius:", size * 1.2, "at position:", x, y, z);
 }
 
 // Handle window resize

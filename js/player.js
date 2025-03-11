@@ -31,6 +31,14 @@ let lastStuckCheck = 0;
 let lastPosition = new THREE.Vector3();
 let stuckCounter = 0;
 
+// Weapon model
+let weaponModel = null;
+let handModel = null;
+let weaponBobTime = 0;
+let weaponSwayAmount = 0.02;
+let weaponBobAmount = 0.03;
+let weaponBobSpeed = 5;
+
 // Camera smoothing properties
 const mouseSensitivity = 0.001; // Reduced sensitivity for smoother control
 let targetRotationX = 0;
@@ -54,6 +62,93 @@ function initPlayer() {
     
     // Initialize last position
     lastPosition.copy(camera.position);
+    
+    // Create weapon model
+    createWeaponModel();
+}
+
+// Create weapon model (pistol and hand)
+function createWeaponModel() {
+    // Create a group to hold the weapon and hand
+    weaponModel = new THREE.Group();
+    
+    // Create hand
+    const handGeometry = new THREE.BoxGeometry(0.2, 0.3, 0.6);
+    const handMaterial = new THREE.MeshLambertMaterial({ color: 0xFFD6C4 }); // Skin color
+    handModel = new THREE.Mesh(handGeometry, handMaterial);
+    handModel.position.set(0.25, -0.3, -0.3);
+    weaponModel.add(handModel);
+    
+    // Create pistol body
+    const pistolBodyGeometry = new THREE.BoxGeometry(0.2, 0.25, 0.5);
+    const pistolMaterial = new THREE.MeshLambertMaterial({ color: 0x333333 }); // Dark gray
+    const pistolBody = new THREE.Mesh(pistolBodyGeometry, pistolMaterial);
+    pistolBody.position.set(0.25, -0.15, -0.6);
+    weaponModel.add(pistolBody);
+    
+    // Create pistol barrel
+    const barrelGeometry = new THREE.CylinderGeometry(0.05, 0.05, 0.3);
+    const barrelMaterial = new THREE.MeshLambertMaterial({ color: 0x222222 }); // Darker gray
+    const barrel = new THREE.Mesh(barrelGeometry, barrelMaterial);
+    barrel.rotation.x = Math.PI / 2; // Rotate to point forward
+    barrel.position.set(0.25, -0.1, -0.9);
+    weaponModel.add(barrel);
+    
+    // Create pistol grip
+    const gripGeometry = new THREE.BoxGeometry(0.15, 0.3, 0.2);
+    const gripMaterial = new THREE.MeshLambertMaterial({ color: 0x111111 }); // Almost black
+    const grip = new THREE.Mesh(gripGeometry, gripMaterial);
+    grip.position.set(0.25, -0.35, -0.5);
+    weaponModel.add(grip);
+    
+    // Create pistol trigger
+    const triggerGeometry = new THREE.BoxGeometry(0.05, 0.1, 0.05);
+    const triggerMaterial = new THREE.MeshLambertMaterial({ color: 0x444444 });
+    const trigger = new THREE.Mesh(triggerGeometry, triggerMaterial);
+    trigger.position.set(0.25, -0.25, -0.4);
+    weaponModel.add(trigger);
+    
+    // Position the weapon model in front of the camera
+    weaponModel.position.set(0, -0.2, -0.5);
+    
+    // Add the weapon model to the camera
+    camera.add(weaponModel);
+}
+
+// Update weapon position for bobbing and swaying effects
+function updateWeaponPosition() {
+    if (!weaponModel) return;
+    
+    // Reset position
+    weaponModel.position.set(0, -0.2, -0.5);
+    weaponModel.rotation.set(0, 0, 0);
+    
+    // Add weapon bob when moving
+    if (moveState.forward || moveState.backward || moveState.left || moveState.right) {
+        weaponBobTime += 0.1;
+        const bobY = Math.sin(weaponBobTime * weaponBobSpeed) * weaponBobAmount;
+        const bobX = Math.cos(weaponBobTime * weaponBobSpeed * 0.5) * weaponBobAmount * 0.5;
+        
+        weaponModel.position.y += bobY;
+        weaponModel.position.x += bobX;
+    }
+    
+    // Add weapon sway based on mouse movement
+    if (window.lastX || window.lastY) {
+        const swayX = -window.lastX * weaponSwayAmount * 0.1;
+        const swayY = -window.lastY * weaponSwayAmount * 0.1;
+        
+        weaponModel.rotation.y += swayX;
+        weaponModel.rotation.x += swayY;
+    }
+    
+    // Add recoil effect when shooting
+    const timeSinceShot = Date.now() - lastShootTime;
+    if (timeSinceShot < 200) {
+        const recoilAmount = 0.2 * (1 - timeSinceShot / 200);
+        weaponModel.position.z += recoilAmount;
+        weaponModel.rotation.x -= recoilAmount * 0.5;
+    }
 }
 
 // Handle key down events
@@ -282,6 +377,9 @@ function updatePlayer() {
         lastPosition.copy(camera.position);
     }
     
+    // Update weapon position
+    updateWeaponPosition();
+    
     updateProjectiles();
 }
 
@@ -340,99 +438,133 @@ function shoot() {
     const bulletMat = new THREE.MeshLambertMaterial({ color: 0xFFD700 });
     const bullet = new THREE.Mesh(bulletGeo, bulletMat);
     
-    // Position bullet at camera position
-    const bulletOffset = new THREE.Vector3(0, 0, -1);
-    bulletOffset.applyQuaternion(camera.quaternion);
-    bullet.position.copy(camera.position).add(bulletOffset);
+    // Get the barrel position in world space
+    const barrelPosition = new THREE.Vector3(0.25, -0.1, -0.9);
+    barrelPosition.applyMatrix4(weaponModel.matrixWorld);
+    
+    // Position bullet at barrel position
+    bullet.position.copy(barrelPosition);
     
     // Set bullet rotation to match camera
     bullet.quaternion.copy(camera.quaternion);
     bullet.rotateX(Math.PI / 2);
     
     // Create projectile object with velocity
-    const direction = new THREE.Vector3(0, 0, -1)
-        .applyQuaternion(camera.quaternion)
-        .normalize();
+    const direction = new THREE.Vector3(0, 0, -1);
+    direction.applyQuaternion(camera.quaternion);
+    direction.normalize();
     
     const projectile = {
         mesh: bullet,
         velocity: direction.multiplyScalar(PROJECTILE_SPEED),
-        createTime: now
+        created: now
     };
     
+    // Add to scene and projectiles array
     scene.add(bullet);
     projectiles.push(projectile);
     
-    createMuzzleFlash();
+    // Create muzzle flash at barrel position
+    createMuzzleFlash(barrelPosition);
     
+    // Play sound
     if (typeof playSound === 'function') {
         playSound('shoot');
     }
+}
+
+// Create muzzle flash effect
+function createMuzzleFlash(position) {
+    // Create a bright point light
+    const flashLight = new THREE.PointLight(0xFFFF00, 5, 2);
+    flashLight.position.copy(position);
+    scene.add(flashLight);
     
-    console.log("Shot fired, total projectiles:", projectiles.length);
+    // Create a small glowing sphere
+    const flashGeo = new THREE.SphereGeometry(0.1, 8, 8);
+    const flashMat = new THREE.MeshBasicMaterial({ 
+        color: 0xFFFF00,
+        transparent: true,
+        opacity: 0.8
+    });
+    const flash = new THREE.Mesh(flashGeo, flashMat);
+    flash.position.copy(position);
+    scene.add(flash);
+    
+    // Remove after a short time
+    setTimeout(() => {
+        scene.remove(flashLight);
+        scene.remove(flash);
+        flashMat.dispose();
+        flashGeo.dispose();
+    }, 100);
 }
 
 // Update projectiles
 function updateProjectiles() {
     const now = Date.now();
     
+    // Update each projectile
     for (let i = projectiles.length - 1; i >= 0; i--) {
         const projectile = projectiles[i];
         
         // Move projectile
         projectile.mesh.position.add(projectile.velocity);
         
-        // Check for collision with environment if the function exists
+        // Check for collision with environment
         let environmentCollision = false;
-        if (typeof window.checkEnvironmentCollision === 'function') {
-            const collision = window.checkEnvironmentCollision(projectile.mesh.position, 0.05);
-            environmentCollision = collision.collided;
+        
+        // Use raycaster to check for collisions with environment
+        const raycaster = new THREE.Raycaster(
+            projectile.mesh.position.clone().sub(projectile.velocity), // Start position (previous position)
+            projectile.velocity.clone().normalize(), // Direction
+            0, // Near
+            projectile.velocity.length() * 1.5 // Far (slightly more than movement distance)
+        );
+        
+        // Check collision with environment objects
+        const environmentIntersects = raycaster.intersectObjects(window.environmentObjects || [], true);
+        if (environmentIntersects.length > 0) {
+            environmentCollision = true;
+            
+            // Create hit effect at collision point
+            createHitEffect(environmentIntersects[0].point);
+            
+            console.log("Projectile hit environment at", environmentIntersects[0].point);
         }
         
         // Check for collision with enemies
         let hitEnemy = false;
+        
         if (window.enemies && window.enemies.length > 0) {
-            for (let j = window.enemies.length - 1; j >= 0; j--) {
-                const enemy = window.enemies[j];
-                if (!enemy.isSpawning && projectile.mesh.position.distanceTo(enemy.mesh.position) < 1) {
+            for (const enemy of window.enemies) {
+                if (!enemy.mesh) continue;
+                
+                const distance = projectile.mesh.position.distanceTo(enemy.mesh.position);
+                if (distance < 1.0) { // Enemy hit radius
                     hitEnemy = true;
+                    
+                    // Call enemy hit function if it exists
                     if (typeof window.hitEnemy === 'function') {
-                        console.log("Calling hitEnemy function");
                         window.hitEnemy(enemy);
-                    } else {
-                        console.log("hitEnemy function not found");
                     }
+                    
+                    // Create hit effect
+                    createHitEffect(projectile.mesh.position.clone());
+                    
                     break;
                 }
             }
         }
         
         // Remove projectile if it hits something or is too old
-        if (environmentCollision || hitEnemy || now - projectile.createTime > PROJECTILE_LIFETIME) {
+        if (environmentCollision || hitEnemy || now - projectile.created > PROJECTILE_LIFETIME) {
             scene.remove(projectile.mesh);
             projectile.mesh.geometry.dispose();
             projectile.mesh.material.dispose();
             projectiles.splice(i, 1);
-            
-            if (environmentCollision) {
-                createHitEffect(projectile.mesh.position);
-            }
         }
     }
-}
-
-// Create muzzle flash effect
-function createMuzzleFlash() {
-    const light = new THREE.PointLight(0xFFFF00, 2, 3);
-    const flashOffset = new THREE.Vector3(0, 0, -1);
-    flashOffset.applyQuaternion(camera.quaternion);
-    light.position.copy(camera.position).add(flashOffset);
-    
-    scene.add(light);
-    
-    setTimeout(() => {
-        scene.remove(light);
-    }, 50);
 }
 
 // Create hit effect

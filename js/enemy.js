@@ -91,10 +91,11 @@ function spawnEnemyWave() {
 
 // Spawn a single enemy
 function spawnEnemy() {
-    // Create zombie body
+    // Create zombie body with a random color
     const geo = new THREE.BoxGeometry(1, 2, 1);
+    const zombieColor = zombieColors[Math.floor(Math.random() * zombieColors.length)];
     const mat = new THREE.MeshLambertMaterial({ 
-        color: zombieColors[Math.floor(Math.random() * zombieColors.length)],
+        color: zombieColor,
         emissive: 0x202020,
         emissiveIntensity: 0.5
     });
@@ -110,8 +111,12 @@ function spawnEnemy() {
     // Clear canvas with transparent background
     ctx.clearRect(0, 0, 128, 128);
     
-    // Draw face outline
-    ctx.fillStyle = '#50FF50';
+    // Convert zombie color to CSS color string
+    const colorObj = new THREE.Color(zombieColor);
+    const cssColor = `rgb(${Math.floor(colorObj.r * 255)}, ${Math.floor(colorObj.g * 255)}, ${Math.floor(colorObj.b * 255)})`;
+    
+    // Draw face outline using the same color as the body
+    ctx.fillStyle = cssColor;
     ctx.beginPath();
     ctx.arc(64, 64, 60, 0, Math.PI * 2);
     ctx.fill();
