@@ -487,58 +487,60 @@ function shoot() {
     const bulletMat = new THREE.MeshBasicMaterial({ color: 0xFFD700 });
     const bullet = new THREE.Mesh(bulletGeo, bulletMat);
     
-    // Position bullet at barrel tip if weapon exists, otherwise at camera
-    let bulletStartPosition;
-    if (weaponModel) {
-        // Find the barrel in the weapon model
-        let barrelTip = new THREE.Vector3(0.3, -0.4, -1.0); // Default position
-        
-        // Apply weapon model's world matrix to get the barrel tip in world space
-        barrelTip.applyMatrix4(weaponModel.matrixWorld);
-        
-        // Set bullet start position to barrel tip
-        bulletStartPosition = barrelTip.clone();
-        bullet.position.copy(barrelTip);
-    } else {
-        // Fallback to camera position with offset
-        bulletStartPosition = camera.position.clone();
-        const bulletOffset = new THREE.Vector3(0, 0, -0.5);
-        bulletOffset.applyQuaternion(camera.quaternion);
-        bullet.position.copy(camera.position).add(bulletOffset);
-        bulletStartPosition.add(bulletOffset);
-    }
-    
     // Create a raycaster from the camera center (where crosshair is)
     const raycaster = new THREE.Raycaster();
-    // Use 0,0 as the normalized device coordinates (center of the screen where the crosshair is)
     raycaster.setFromCamera(new THREE.Vector2(0, 0), camera);
     
-    // Get the exact direction from the raycaster
-    const direction = raycaster.ray.direction.clone().normalize();
+    // Calculate the exact hit point in world space
+    // Cast ray to find the intersection with objects or use a far point if no intersection
+    const intersects = raycaster.intersectObjects(window.environmentObjects || [], true);
+    let hitPoint;
     
-    // Set bullet rotation to align with the ray direction
+    if (intersects.length > 0) {
+        // If we hit something, use that point
+        hitPoint = intersects[0].point;
+    } else {
+        // If we didn't hit anything, use a point far along the ray
+        hitPoint = new THREE.Vector3();
+        hitPoint.copy(camera.position).add(raycaster.ray.direction.multiplyScalar(100));
+    }
+    
+    // Get the barrel position in world space
+    const barrelTip = new THREE.Vector3(0.3, -0.3, -1.1);
+    barrelTip.applyMatrix4(weaponModel.matrixWorld);
+    
+    // Calculate the exact direction from barrel to hit point
+    const direction = new THREE.Vector3();
+    direction.subVectors(hitPoint, barrelTip).normalize();
+    
+    // Position bullet at barrel tip
+    bullet.position.copy(barrelTip);
+    
+    // Align bullet with the tilted trajectory
     bullet.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), direction);
     
     // Create projectile object with velocity
     const projectile = {
         mesh: bullet,
-        velocity: direction.multiplyScalar(PROJECTILE_SPEED),
-        created: now
+        velocity: direction.clone().multiplyScalar(PROJECTILE_SPEED),
+        created: now,
+        startPoint: barrelTip.clone(),
+        targetPoint: hitPoint.clone()
     };
     
     // Add bullet to scene and projectiles array
     scene.add(bullet);
     projectiles.push(projectile);
     
-    // Create muzzle flash effect
-    createMuzzleFlash(bulletStartPosition);
+    // Create muzzle flash effect at barrel tip
+    createMuzzleFlash(barrelTip);
     
     // Play sound
     if (typeof playSound === 'function') {
         playSound('shoot');
     }
     
-    console.log("Shot fired, projectiles count:", projectiles.length);
+    console.log("Shot fired from", barrelTip, "to", hitPoint);
 }
 
 // Create muzzle flash effect
