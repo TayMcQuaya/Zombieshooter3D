@@ -6,11 +6,14 @@ const moveState = {
     backward: false,
     left: false,
     right: false,
-    jump: false
+    jump: false,
+    run: false  // New state for running
 };
 
 // Player properties
 const PLAYER_SPEED = 0.04;
+const WALK_SPEED = 0.02;  // New walking speed (half of original speed)
+const RUN_SPEED = 0.04;   // Run speed (same as original speed)
 const PLAYER_RADIUS = 0.5;
 const JUMP_FORCE = 0.2;
 const GRAVITY = 0.01;
@@ -20,6 +23,13 @@ const PROJECTILE_SPEED = 0.8;  // Reduced from 2.0 for slower bullets
 const JUMP_COOLDOWN = 500;
 const SHOOT_COOLDOWN = 400;    // 400ms between shots
 const COLLISION_BUFFER = 0.1;  // Small buffer to prevent getting too close to objects
+
+// Stamina system
+const MAX_STAMINA = 100;
+const STAMINA_DEPLETION_RATE = 0.5;  // How fast stamina depletes when running
+const STAMINA_RECOVERY_RATE = 0.2;   // How fast stamina recovers when not running
+let currentStamina = MAX_STAMINA;
+let canRun = true;
 
 let velocity = new THREE.Vector3();
 let isJumping = false;
@@ -223,6 +233,9 @@ function onKeyDown(event) {
         case ' ':
             moveState.jump = true;
             break;
+        case 'shift':
+            moveState.run = true;  // Shift key for running
+            break;
     }
 }
 
@@ -245,6 +258,9 @@ function onKeyUp(event) {
             break;
         case ' ':
             moveState.jump = false;
+            break;
+        case 'shift':
+            moveState.run = false;  // Release shift key to stop running
             break;
     }
 }
@@ -347,6 +363,9 @@ function updatePlayer() {
         canJump = true;
     }
     
+    // Update stamina
+    updateStamina();
+    
     // Calculate movement vector
     let moveX = 0;
     let moveZ = 0;
@@ -364,9 +383,12 @@ function updatePlayer() {
         moveZ *= 0.7071;
     }
     
+    // Determine current speed based on running state
+    const currentSpeed = (moveState.run && canRun) ? RUN_SPEED : WALK_SPEED;
+    
     // Apply movement speed
-    moveX *= PLAYER_SPEED;
-    moveZ *= PLAYER_SPEED;
+    moveX *= currentSpeed;
+    moveZ *= currentSpeed;
     
     // Convert movement to world space
     if (moveX !== 0 || moveZ !== 0) {
@@ -690,6 +712,38 @@ function createHitEffect(position) {
             particle.geometry.dispose();
             particle.material.dispose();
         }, 200);
+    }
+}
+
+// Update stamina based on player actions
+function updateStamina() {
+    // Deplete stamina when running
+    if (moveState.run && (moveState.forward || moveState.backward || moveState.left || moveState.right)) {
+        if (currentStamina > 0) {
+            currentStamina -= STAMINA_DEPLETION_RATE;
+            if (currentStamina < 0) currentStamina = 0;
+        }
+    } else {
+        // Recover stamina when not running
+        if (currentStamina < MAX_STAMINA) {
+            currentStamina += STAMINA_RECOVERY_RATE;
+            if (currentStamina > MAX_STAMINA) currentStamina = MAX_STAMINA;
+        }
+    }
+    
+    // Update running ability
+    canRun = currentStamina > 0;
+    
+    // Update stamina UI
+    updateStaminaUI();
+}
+
+// Update the stamina UI
+function updateStaminaUI() {
+    const staminaBar = document.getElementById('stamina-fill');
+    if (staminaBar) {
+        const staminaPercentage = (currentStamina / MAX_STAMINA) * 100;
+        staminaBar.style.width = `${staminaPercentage}%`;
     }
 }
 
