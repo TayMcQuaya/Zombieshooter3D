@@ -193,7 +193,11 @@ function spawnEnemy() {
         isSpawning: true,
         targetY: 1,
         originalScale: mesh.scale.clone(),
-        originalEmissive: mesh.material.emissive.getHex()
+        originalMaterialProps: {
+            color: mesh.material.color.getHex(),
+            emissive: mesh.material.emissive.getHex(),
+            emissiveIntensity: mesh.material.emissiveIntensity || 0.5
+        }
     };
     
     scene.add(mesh);
@@ -221,15 +225,25 @@ function hitEnemy(enemy) {
     enemy.isHit = true;
     enemy.lastHit = now;
     
-    // Store original scale and color if not already stored
+    // Store original properties if not already stored
     if (!enemy.originalScale) {
         enemy.originalScale = enemy.mesh.scale.clone();
-        enemy.originalEmissive = enemy.mesh.material.emissive.getHex();
     }
     
-    // Visual feedback - flash bright red
-    enemy.mesh.material.emissive.setHex(0xff0000);
-    enemy.mesh.material.emissiveIntensity = 1.0; // Increase intensity for brighter effect
+    if (!enemy.originalMaterialProps) {
+        // Store original material properties
+        enemy.originalMaterialProps = {
+            color: enemy.mesh.material.color.getHex(),
+            emissive: enemy.mesh.material.emissive.getHex(),
+            emissiveIntensity: enemy.mesh.material.emissiveIntensity || 0.5
+        };
+    }
+    
+    // Visual feedback - change to bright red
+    // This approach overrides both the base color and emissive color for a more consistent red
+    enemy.mesh.material.color.setHex(0xff0000);     // Set base color to red
+    enemy.mesh.material.emissive.setHex(0xff0000);  // Set emissive to red
+    enemy.mesh.material.emissiveIntensity = 0.8;    // Strong emissive effect
     
     // Add a slight scale effect (make zombie slightly larger when hit)
     enemy.mesh.scale.set(
@@ -333,13 +347,20 @@ function updateEnemies() {
         if (enemy.isHit && now - enemy.lastHit > 200) {
             enemy.isHit = false;
             
-            // Reset emissive color and intensity
-            if (enemy.originalEmissive !== undefined) {
-                enemy.mesh.material.emissive.setHex(enemy.originalEmissive);
+            // Reset material properties to original values
+            if (enemy.originalMaterialProps) {
+                // Restore original color
+                enemy.mesh.material.color.setHex(enemy.originalMaterialProps.color);
+                
+                // Restore original emissive properties
+                enemy.mesh.material.emissive.setHex(enemy.originalMaterialProps.emissive);
+                enemy.mesh.material.emissiveIntensity = enemy.originalMaterialProps.emissiveIntensity;
             } else {
-                enemy.mesh.material.emissive.setHex(0x202020); // Default fallback
+                // Fallback to default values if original properties weren't stored
+                enemy.mesh.material.color.setHex(zombieColors[0]); // Use first zombie color as default
+                enemy.mesh.material.emissive.setHex(0x202020);
+                enemy.mesh.material.emissiveIntensity = 0.5;
             }
-            enemy.mesh.material.emissiveIntensity = 0.5; // Reset to default intensity
             
             // Reset scale
             if (enemy.originalScale) {
@@ -526,7 +547,16 @@ function updateParticles() {
         
         // Move particle
         particle.mesh.position.add(particle.velocity);
-        particle.velocity.y -= 0.005;
+        particle.velocity.y -= 0.005; // Apply gravity
+        
+        // Fade out particles over time
+        if (particle.opacity) {
+            particle.opacity -= 0.02;
+            if (particle.opacity <= 0) {
+                particle.opacity = 0;
+            }
+            particle.mesh.material.opacity = particle.opacity;
+        }
         
         // Remove old particles
         if (now - particle.created > 1000) {
@@ -540,52 +570,57 @@ function updateParticles() {
 
 // Create hit effect at position
 function createHitEffect(position, color) {
-    // Animate particles
-    const animateParticles = () => {
-        const now = Date.now();
-        const particlesToRemove = [];
-        
-        particles.forEach((particle, index) => {
-            // Move particle
-            particle.mesh.position.add(particle.velocity);
-            
-            // Apply gravity
-            particle.velocity.y -= 0.005;
-            
-            // Remove particles after 1 second
-            if (now - particle.created > 1000) {
-                particlesToRemove.push(index);
-            }
-        });
-        
-        // Remove old particles
-        particlesToRemove.sort((a, b) => b - a).forEach(index => {
-            scene.remove(particles[index].mesh);
-            particles.splice(index, 1);
-        });
-        
-        // Continue animation if particles remain
-        if (particles.length > 0) {
-            requestAnimationFrame(animateParticles);
-        }
-    };
-    
-    // Start animation
-    animateParticles();
-}
-
-// Create hit effect at position
-function createHitEffect(position, color) {
-    // Create a flash of light
-    const flash = new THREE.PointLight(color, 1, 10);
+    // Create a bright red flash of light
+    const flash = new THREE.PointLight(0xff0000, 2, 5);
     flash.position.copy(position);
     flash.position.y += 1; // Adjust height for zombie center mass
     scene.add(flash);
     
-    // Remove flash after a short time
-    setTimeout(() => {
-        scene.remove(flash);
-    }, 100);
+    // Animate the flash intensity
+    let intensity = 2;
+    const fadeOut = setInterval(() => {
+        intensity -= 0.2;
+        if (intensity <= 0) {
+            clearInterval(fadeOut);
+            scene.remove(flash);
+        } else {
+            flash.intensity = intensity;
+        }
+    }, 30);
+    
+    // Create blood particles
+    const particleCount = 8;
+    for (let i = 0; i < particleCount; i++) {
+        // Create a small red particle
+        const particleGeo = new THREE.SphereGeometry(0.05, 8, 8);
+        const particleMat = new THREE.MeshBasicMaterial({ 
+            color: 0xff0000,
+            transparent: true,
+            opacity: 0.8
+        });
+        const particle = new THREE.Mesh(particleGeo, particleMat);
+        
+        // Position at hit location
+        particle.position.copy(position);
+        particle.position.y += 1; // Center on zombie
+        
+        // Add random velocity
+        const velocity = new THREE.Vector3(
+            (Math.random() - 0.5) * 0.1,
+            Math.random() * 0.1,
+            (Math.random() - 0.5) * 0.1
+        );
+        
+        scene.add(particle);
+        
+        // Add to particles array with creation time
+        particles.push({
+            mesh: particle,
+            velocity: velocity,
+            created: Date.now(),
+            opacity: 0.8
+        });
+    }
 }
 
 // Export functions

@@ -22,9 +22,16 @@ function init() {
     camera.position.y = 1.7; // Player height
     
     // Create renderer
-    renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer = new THREE.WebGLRenderer({ 
+        antialias: true,
+        powerPreference: 'high-performance'
+    });
     renderer.setSize(window.innerWidth, window.innerHeight);
     renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap; // Softer shadows
+    renderer.outputEncoding = THREE.sRGBEncoding; // Better color representation
+    renderer.gammaFactor = 2.2; // Standard gamma correction
+    renderer.physicallyCorrectLights = true; // More realistic lighting
     document.body.appendChild(renderer.domElement);
     
     // Expose camera and renderer to global scope for debugging
@@ -33,16 +40,7 @@ function init() {
     window.scene = scene;
     window.zombieKills = zombieKills; // Make zombieKills globally accessible
     
-    // Create lighting
-    const ambientLight = new THREE.AmbientLight(0x404040);
-    scene.add(ambientLight);
-    
-    const sunLight = new THREE.DirectionalLight(0xffffff, 1);
-    sunLight.position.set(10, 10, 10);
-    sunLight.castShadow = true;
-    scene.add(sunLight);
-    
-    // Initialize environment first
+    // Initialize environment first (which will set up lighting)
     window.environmentObjects = [];
     createEnvironment();
     
@@ -188,14 +186,14 @@ function createClouds() {
     console.log("Clouds created");
 }
 
-// Create sun
+// Create sun and lighting
 function createSun() {
-    // Create a sun (directional light)
-    sun = new THREE.DirectionalLight(0xffffcc, 1);
-    sun.position.set(50, 100, 50);
+    // Create a main directional light (sun)
+    sun = new THREE.DirectionalLight(0xffffcc, 0.8);
+    sun.position.set(0, 100, 0); // Position directly overhead for more even lighting
     sun.castShadow = true;
     
-    // Configure shadow properties
+    // Configure shadow properties for better quality
     sun.shadow.mapSize.width = 2048;
     sun.shadow.mapSize.height = 2048;
     sun.shadow.camera.near = 0.5;
@@ -205,11 +203,29 @@ function createSun() {
     sun.shadow.camera.top = 100;
     sun.shadow.camera.bottom = -100;
     
+    // Add a helper to visualize the light's shadow camera (useful for debugging)
+    // const helper = new THREE.CameraHelper(sun.shadow.camera);
+    // scene.add(helper);
+    
     scene.add(sun);
     
-    // Add ambient light for general illumination
-    const ambientLight = new THREE.AmbientLight(0x404040, 0.5);
+    // Add hemisphere light for more natural outdoor lighting
+    // This light gradually changes from sky color to ground color
+    const hemisphereLight = new THREE.HemisphereLight(
+        0x87CEEB, // Sky color (light blue)
+        0x556B2F, // Ground color (dark olive green)
+        0.6       // Intensity
+    );
+    scene.add(hemisphereLight);
+    
+    // Add ambient light for general illumination (fill light)
+    const ambientLight = new THREE.AmbientLight(0x404040, 0.4);
     scene.add(ambientLight);
+    
+    // Add a secondary directional light from a different angle to reduce harsh shadows
+    const secondaryLight = new THREE.DirectionalLight(0xffffee, 0.3);
+    secondaryLight.position.set(-50, 50, -50); // Coming from the opposite direction
+    scene.add(secondaryLight);
     
     // Create a visual representation of the sun
     const sunGeometry = new THREE.SphereGeometry(10, 32, 32);
@@ -217,14 +233,20 @@ function createSun() {
     const sunMesh = new THREE.Mesh(sunGeometry, sunMaterial);
     sunMesh.position.copy(sun.position);
     scene.add(sunMesh);
+    
+    console.log("Enhanced lighting system created");
 }
 
 // Create ground
 function createGround() {
-    // Create a large ground plane
-    const groundGeometry = new THREE.PlaneGeometry(200, 200, 20, 20);
-    const groundMaterial = new THREE.MeshLambertMaterial({ 
+    // Create a large ground plane with more segments for better lighting
+    const groundGeometry = new THREE.PlaneGeometry(200, 200, 50, 50);
+    
+    // Create a more realistic ground material
+    const groundMaterial = new THREE.MeshPhongMaterial({ 
         color: 0x556B2F, // Dark olive green for grass
+        specular: 0x111111, // Low specular highlights
+        shininess: 5, // Very low shininess
         side: THREE.DoubleSide
     });
     
@@ -244,6 +266,9 @@ function createArenaBoundaries() {
     const wallHeight = 3;
     const segments = 20;
     
+    // Create a texture for the walls to add more detail
+    const wallTexture = createWoodTexture();
+    
     for (let i = 0; i < segments; i++) {
         const angle1 = (i / segments) * Math.PI * 2;
         const angle2 = ((i + 1) / segments) * Math.PI * 2;
@@ -256,7 +281,15 @@ function createArenaBoundaries() {
         // Calculate wall dimensions
         const length = Math.sqrt(Math.pow(x2 - x1, 2) + Math.pow(z2 - z1, 2));
         const wallGeo = new THREE.BoxGeometry(length, wallHeight, 0.5);
-        const wallMat = new THREE.MeshLambertMaterial({ color: 0x8B4513 });
+        
+        // Use PhongMaterial for better lighting response
+        const wallMat = new THREE.MeshPhongMaterial({ 
+            color: 0x8B4513, // Saddle brown
+            specular: 0x222222,
+            shininess: 10,
+            map: wallTexture
+        });
+        
         const wall = new THREE.Mesh(wallGeo, wallMat);
         
         // Position wall
@@ -264,6 +297,10 @@ function createArenaBoundaries() {
         
         // Rotate wall to face center
         wall.lookAt(new THREE.Vector3(0, wall.position.y, 0));
+        
+        // Enable shadows
+        wall.castShadow = true;
+        wall.receiveShadow = true;
         
         // Add to scene
         scene.add(wall);
@@ -556,6 +593,58 @@ function updateGameState() {
     if (health <= 0) {
         endGame();
     }
+}
+
+// Create a procedural wood texture
+function createWoodTexture() {
+    const canvas = document.createElement('canvas');
+    canvas.width = 256;
+    canvas.height = 256;
+    const ctx = canvas.getContext('2d');
+    
+    // Fill with base wood color
+    ctx.fillStyle = '#8B4513';
+    ctx.fillRect(0, 0, 256, 256);
+    
+    // Add wood grain
+    for (let i = 0; i < 20; i++) {
+        const x = Math.random() * 256;
+        const y = 0;
+        const width = 1 + Math.random() * 3;
+        const height = 256;
+        
+        // Randomize grain color slightly
+        const colorValue = 139 + Math.floor(Math.random() * 30 - 15);
+        ctx.fillStyle = `rgb(${colorValue}, ${Math.floor(colorValue/2)}, 19)`;
+        ctx.fillRect(x, y, width, height);
+    }
+    
+    // Add some knots
+    for (let i = 0; i < 5; i++) {
+        const x = Math.random() * 256;
+        const y = Math.random() * 256;
+        const radius = 3 + Math.random() * 7;
+        
+        // Draw knot
+        ctx.beginPath();
+        ctx.arc(x, y, radius, 0, Math.PI * 2);
+        ctx.fillStyle = '#3D2B1F';
+        ctx.fill();
+        
+        // Add highlight
+        ctx.beginPath();
+        ctx.arc(x - radius/3, y - radius/3, radius/3, 0, Math.PI * 2);
+        ctx.fillStyle = '#A67D5D';
+        ctx.fill();
+    }
+    
+    // Create texture from canvas
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.wrapS = THREE.RepeatWrapping;
+    texture.wrapT = THREE.RepeatWrapping;
+    texture.repeat.set(1, 1);
+    
+    return texture;
 }
 
 // Initialize the game when the page loads
