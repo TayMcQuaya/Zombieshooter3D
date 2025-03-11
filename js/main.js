@@ -15,7 +15,10 @@ let sun, skybox;
 function init() {
     // Create scene
     scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x87CEEB); // Sky blue background
+    scene.background = new THREE.Color(0x050A14); // Darker night sky color
+    
+    // We'll add custom ground fog later, so don't add fog here
+    // scene.fog = new THREE.Fog(0x0A0E1A, 10, 70); // Linear fog with near=10, far=70
     
     // Create camera with a closer near clipping plane to see the weapon
     camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.01, 1000);
@@ -123,11 +126,11 @@ function createEnvironment() {
 
 // Create a skybox
 function createSkybox() {
-    // Create a dark night sky background
-    scene.background = new THREE.Color(0x0A0E1A); // Dark blue/black night sky
+    // Create a dark night sky background - darker for better star visibility
+    scene.background = new THREE.Color(0x020508); // Very dark blue/black night sky
     
-    // Add stars
-    createStars();
+    // We'll create stars in the addAtmosphericEffects function
+    // Don't call createStars here to avoid duplication
     
     console.log("Night skybox created");
 }
@@ -192,7 +195,7 @@ function createStars() {
 // Create moon and night lighting
 function createSun() {
     // Create a main directional light (moonlight)
-    sun = new THREE.DirectionalLight(0xCCDDFF, 0.3); // Soft blue-white moonlight, lower intensity
+    sun = new THREE.DirectionalLight(0xCCDDFF, 0.4); // Slightly brighter moonlight
     sun.position.set(30, 50, 30); // Position at an angle for dramatic shadows
     sun.castShadow = true;
     
@@ -212,36 +215,63 @@ function createSun() {
     const hemisphereLight = new THREE.HemisphereLight(
         0x0A1030, // Sky color (dark blue)
         0x0A1010, // Ground color (very dark)
-        0.2       // Low intensity
+        0.3       // Increased intensity
     );
     scene.add(hemisphereLight);
     
     // Add ambient light for minimal illumination (night vision)
-    const ambientLight = new THREE.AmbientLight(0x101020, 0.2);
+    const ambientLight = new THREE.AmbientLight(0x101020, 0.3); // Increased ambient light
     scene.add(ambientLight);
     
     // Create a visual representation of the moon
-    const moonGeometry = new THREE.SphereGeometry(5, 32, 32);
+    const moonGeometry = new THREE.SphereGeometry(40, 32, 32); // Even larger for better visibility
     
     // Create moon texture using canvas
     const moonCanvas = document.createElement('canvas');
-    moonCanvas.width = 256;
-    moonCanvas.height = 256;
+    moonCanvas.width = 512;
+    moonCanvas.height = 512;
     const ctx = moonCanvas.getContext('2d');
     
-    // Draw moon base
+    // Draw moon base with a bright white color
     ctx.fillStyle = '#FFFFFF';
     ctx.beginPath();
-    ctx.arc(128, 128, 120, 0, Math.PI * 2);
+    ctx.arc(256, 256, 240, 0, Math.PI * 2);
+    ctx.fill();
+    
+    // Add a subtle glow around the edge
+    const edgeGradient = ctx.createRadialGradient(256, 256, 220, 256, 256, 240);
+    edgeGradient.addColorStop(0, 'rgba(255, 255, 255, 1)');
+    edgeGradient.addColorStop(1, 'rgba(220, 220, 255, 0.8)');
+    ctx.fillStyle = edgeGradient;
+    ctx.beginPath();
+    ctx.arc(256, 256, 240, 0, Math.PI * 2);
     ctx.fill();
     
     // Add some subtle moon details/craters
-    for (let i = 0; i < 20; i++) {
-        const x = Math.random() * 200 + 28;
-        const y = Math.random() * 200 + 28;
-        const radius = Math.random() * 10 + 5;
+    for (let i = 0; i < 30; i++) {
+        const x = Math.random() * 450 + 30;
+        const y = Math.random() * 450 + 30;
+        const radius = Math.random() * 15 + 5;
         
-        ctx.fillStyle = `rgba(200, 200, 220, ${Math.random() * 0.5 + 0.5})`;
+        // Use a gradient for more realistic craters
+        const craterGradient = ctx.createRadialGradient(x, y, 0, x, y, radius);
+        craterGradient.addColorStop(0, 'rgba(180, 180, 190, 0.6)');
+        craterGradient.addColorStop(0.8, 'rgba(210, 210, 220, 0.3)');
+        craterGradient.addColorStop(1, 'rgba(248, 248, 240, 0)');
+        
+        ctx.fillStyle = craterGradient;
+        ctx.beginPath();
+        ctx.arc(x, y, radius, 0, Math.PI * 2);
+        ctx.fill();
+    }
+    
+    // Add some larger mare (dark areas)
+    for (let i = 0; i < 5; i++) {
+        const x = Math.random() * 350 + 80;
+        const y = Math.random() * 350 + 80;
+        const radius = Math.random() * 60 + 30;
+        
+        ctx.fillStyle = 'rgba(150, 150, 170, 0.2)';
         ctx.beginPath();
         ctx.arc(x, y, radius, 0, Math.PI * 2);
         ctx.fill();
@@ -252,29 +282,222 @@ function createSun() {
     // Create a glowing material for the moon
     const moonMaterial = new THREE.MeshBasicMaterial({ 
         map: moonTexture,
-        color: 0xFFFFFF
+        color: 0xFFFFFF,
+        emissive: 0xFFFFFF,
+        emissiveIntensity: 0.2 // Make the moon glow
     });
     
     const moon = new THREE.Mesh(moonGeometry, moonMaterial);
-    moon.position.copy(sun.position);
+    // Position the moon directly in front of the player's starting position
+    moon.position.set(0, 60, -120);
     
-    // Add a subtle glow effect around the moon
-    const moonGlowGeometry = new THREE.SphereGeometry(5.5, 32, 32);
+    // Add a stronger glow effect around the moon
+    const moonGlowGeometry = new THREE.SphereGeometry(44, 32, 32);
     const moonGlowMaterial = new THREE.MeshBasicMaterial({
-        color: 0xCCDDFF,
+        color: 0xFFFFFF,
         transparent: true,
-        opacity: 0.2
+        opacity: 0.4
     });
     const moonGlow = new THREE.Mesh(moonGlowGeometry, moonGlowMaterial);
-    moonGlow.position.copy(sun.position);
+    moonGlow.position.copy(moon.position);
     
     scene.add(moon);
     scene.add(moonGlow);
     
-    // Add fog to the scene for atmospheric effect
-    scene.fog = new THREE.FogExp2(0x0A0E1A, 0.015); // Exponential fog with night sky color
+    // Update the directional light to match the moon position
+    sun.position.copy(moon.position);
+    
+    // Create a custom height fog that's more intense at ground level
+    // We'll remove the standard fog and handle it in the shader
+    scene.fog = null; // Remove standard fog
+    
+    // Add subtle volumetric fog to the scene
+    addVolumetricFog();
+    
+    // Create a custom ground fog effect
+    createGroundFog();
     
     console.log("Night lighting system created with moon");
+}
+
+// Add volumetric fog to the scene
+function addVolumetricFog() {
+    // Create several layers of fog particles at different heights
+    const fogParticleCount = 200;
+    const fogGeometry = new THREE.BufferGeometry();
+    const fogPositions = [];
+    const fogSizes = [];
+    
+    // Create fog particles in a cylinder around the player area
+    for (let i = 0; i < fogParticleCount; i++) {
+        // Random position in a cylinder
+        const radius = 5 + Math.random() * 20; // Between 5-25 units from center
+        const angle = Math.random() * Math.PI * 2;
+        const height = Math.random() * 3; // Between 0-3 units high
+        
+        const x = Math.cos(angle) * radius;
+        const y = height;
+        const z = Math.sin(angle) * radius;
+        
+        fogPositions.push(x, y, z);
+        
+        // Random sizes for fog particles
+        fogSizes.push(Math.random() * 4 + 2); // Between 2-6 units
+    }
+    
+    // Add positions and sizes to the geometry
+    fogGeometry.setAttribute('position', new THREE.Float32BufferAttribute(fogPositions, 3));
+    fogGeometry.setAttribute('size', new THREE.Float32BufferAttribute(fogSizes, 1));
+    
+    // Create a custom shader material for the fog particles
+    const fogMaterial = new THREE.ShaderMaterial({
+        uniforms: {
+            color: { value: new THREE.Color(0x050A14) },
+            fogTexture: { value: createFogTexture() },
+            time: { value: 0.0 }
+        },
+        vertexShader: `
+            attribute float size;
+            varying vec3 vColor;
+            uniform float time;
+            
+            void main() {
+                // Slow vertical movement based on time
+                vec3 pos = position;
+                pos.y += sin(time * 0.2 + position.x * 0.05 + position.z * 0.05) * 0.2;
+                
+                vec4 mvPosition = modelViewMatrix * vec4(pos, 1.0);
+                gl_PointSize = size * (300.0 / -mvPosition.z);
+                gl_Position = projectionMatrix * mvPosition;
+                
+                // Pass fog color to fragment shader
+                vColor = vec3(0.05, 0.05, 0.1);
+            }
+        `,
+        fragmentShader: `
+            uniform sampler2D fogTexture;
+            varying vec3 vColor;
+            
+            void main() {
+                // Sample the fog texture
+                vec4 texColor = texture2D(fogTexture, gl_PointCoord);
+                
+                // Apply the fog color
+                gl_FragColor = vec4(vColor, texColor.r * 0.3); // Low opacity
+            }
+        `,
+        transparent: true,
+        depthWrite: false,
+        blending: THREE.AdditiveBlending
+    });
+    
+    // Create the fog particles
+    const fogParticles = new THREE.Points(fogGeometry, fogMaterial);
+    scene.add(fogParticles);
+    
+    // Store the material for animation updates
+    window.fogParticleMaterial = fogMaterial;
+    
+    console.log("Volumetric fog added");
+}
+
+// Create a texture for fog particles
+function createFogTexture() {
+    const canvas = document.createElement('canvas');
+    canvas.width = 32;
+    canvas.height = 32;
+    const ctx = canvas.getContext('2d');
+    
+    // Draw a soft circular gradient for fog particles
+    const gradient = ctx.createRadialGradient(16, 16, 0, 16, 16, 16);
+    gradient.addColorStop(0, 'rgba(255, 255, 255, 1)');
+    gradient.addColorStop(0.2, 'rgba(255, 255, 255, 0.8)');
+    gradient.addColorStop(0.5, 'rgba(255, 255, 255, 0.4)');
+    gradient.addColorStop(1, 'rgba(255, 255, 255, 0)');
+    
+    ctx.fillStyle = gradient;
+    ctx.fillRect(0, 0, 32, 32);
+    
+    return new THREE.CanvasTexture(canvas);
+}
+
+// Create a custom ground fog effect
+function createGroundFog() {
+    // Create a large plane for the ground fog
+    const fogPlaneGeometry = new THREE.PlaneGeometry(500, 500, 50, 50); // More segments for better blending
+    
+    // Create a custom shader material for height-based fog
+    const fogMaterial = new THREE.ShaderMaterial({
+        uniforms: {
+            color: { value: new THREE.Color(0x050A14) }, // Darker color to match sky
+            fogDensity: { value: 0.08 }, // Lower density for subtler effect
+            time: { value: 0.0 } // Time uniform for subtle movement
+        },
+        vertexShader: `
+            varying vec3 vWorldPosition;
+            varying vec2 vUv;
+            
+            void main() {
+                vec4 worldPosition = modelMatrix * vec4(position, 1.0);
+                vWorldPosition = worldPosition.xyz;
+                vUv = uv;
+                gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+            }
+        `,
+        fragmentShader: `
+            uniform vec3 color;
+            uniform float fogDensity;
+            uniform float time;
+            
+            varying vec3 vWorldPosition;
+            varying vec2 vUv;
+            
+            // Simple noise function
+            float noise(vec2 st) {
+                return fract(sin(dot(st.xy, vec2(12.9898, 78.233))) * 43758.5453123);
+            }
+            
+            void main() {
+                // Calculate height-based fog (more intense closer to ground)
+                float height = vWorldPosition.y;
+                
+                // Add some noise based on position for a more natural look
+                float noiseValue = noise(vUv * 10.0 + time * 0.01) * 0.1;
+                
+                // Exponential falloff with height + noise
+                float fogFactor = exp(-fogDensity * (height + noiseValue) * 2.0);
+                
+                // Softer transition at the edges
+                float distanceFromCenter = length(vUv - 0.5) * 2.0;
+                float edgeFade = 1.0 - smoothstep(0.7, 1.0, distanceFromCenter);
+                
+                // Combine factors and clamp
+                fogFactor = fogFactor * edgeFade;
+                fogFactor = clamp(fogFactor, 0.0, 0.6); // Lower maximum opacity
+                
+                // Fade out completely above player height
+                if (height > 3.0) {
+                    fogFactor *= max(0.0, 1.0 - (height - 3.0) / 2.0);
+                }
+                
+                gl_FragColor = vec4(color, fogFactor);
+            }
+        `,
+        transparent: true,
+        side: THREE.DoubleSide,
+        depthWrite: false // Don't write to depth buffer to avoid z-fighting
+    });
+    
+    // Create the fog plane
+    const fogPlane = new THREE.Mesh(fogPlaneGeometry, fogMaterial);
+    fogPlane.rotation.x = -Math.PI / 2; // Horizontal
+    fogPlane.position.y = 0.5; // Lower to ground level
+    scene.add(fogPlane);
+    
+    // Store the material for animation updates
+    window.fogMaterial = fogMaterial;
+    
+    console.log("Improved ground fog effect created");
 }
 
 // Create ground
@@ -609,20 +832,32 @@ function animate() {
 
 // Update atmospheric effects
 function updateAtmosphericEffects() {
-    // Update fireflies
+    // Update time for fog animation
     const now = Date.now();
+    const timeValue = now * 0.001; // Slow time factor
     
+    // Update ground fog
+    if (window.fogMaterial) {
+        window.fogMaterial.uniforms.time.value = timeValue;
+    }
+    
+    // Update volumetric fog particles
+    if (window.fogParticleMaterial) {
+        window.fogParticleMaterial.uniforms.time.value = timeValue;
+    }
+    
+    // Update fireflies
     if (window.fireflies && window.fireflies.length > 0) {
         window.fireflies.forEach(firefly => {
             if (!firefly.userData) return;
             
-            // Gentle floating movement
+            // Gentle floating movement - reduced amplitude
             firefly.position.y = firefly.userData.originalY + 
-                Math.sin(now * firefly.userData.speed + firefly.userData.phase) * 0.3;
+                Math.sin(now * firefly.userData.speed + firefly.userData.phase) * 0.15; // Reduced from 0.3
                 
-            // Random horizontal drift
-            firefly.position.x += Math.sin(now * firefly.userData.speed * 0.5) * 0.01;
-            firefly.position.z += Math.cos(now * firefly.userData.speed * 0.5) * 0.01;
+            // Random horizontal drift - reduced
+            firefly.position.x += Math.sin(now * firefly.userData.speed * 0.3) * 0.005; // Reduced movement
+            firefly.position.z += Math.cos(now * firefly.userData.speed * 0.3) * 0.005; // Reduced movement
             
             // Blinking effect
             if (now - firefly.userData.lastBlink > firefly.userData.blinkInterval) {
@@ -630,25 +865,36 @@ function updateAtmosphericEffects() {
                 firefly.userData.isBlinking = true;
                 firefly.userData.blinkStart = now;
                 firefly.userData.lastBlink = now;
-                firefly.userData.blinkDuration = Math.random() * 1000 + 500; // 0.5-1.5 seconds
+                firefly.userData.blinkDuration = Math.random() * 1500 + 1000; // 1-2.5 seconds (slower)
             }
             
-            // Handle blinking animation
+            // Handle blinking animation - more subtle
             if (firefly.userData.isBlinking) {
                 const blinkProgress = (now - firefly.userData.blinkStart) / firefly.userData.blinkDuration;
                 
                 if (blinkProgress < 0.5) {
-                    // Fade out
-                    firefly.material.opacity = 0.8 * (1 - blinkProgress * 2);
+                    // Fade out - more subtle
+                    firefly.material.opacity = 0.5 * (1 - blinkProgress * 1.5); // Less dramatic fade
                 } else if (blinkProgress < 1) {
-                    // Fade in
-                    firefly.material.opacity = 0.8 * ((blinkProgress - 0.5) * 2);
+                    // Fade in - more subtle
+                    firefly.material.opacity = 0.5 * ((blinkProgress - 0.5) * 1.5); // Less dramatic fade
                 } else {
                     // Blink complete
-                    firefly.material.opacity = 0.8;
+                    firefly.material.opacity = 0.5;
                     firefly.userData.isBlinking = false;
                 }
             }
+        });
+    }
+    
+    // Update twinkling stars
+    if (window.brightStars && window.brightStars.length > 0) {
+        window.brightStars.forEach(star => {
+            if (!star.userData) return;
+            
+            // Twinkle effect - subtle variation in opacity
+            star.material.opacity = star.userData.originalOpacity + 
+                Math.sin(now * star.userData.twinkleSpeed + star.userData.twinklePhase) * 0.2;
         });
     }
 }
@@ -1121,6 +1367,9 @@ function createLeafTexture() {
 
 // Add atmospheric effects for night scene
 function addAtmosphericEffects() {
+    // Create stars for night sky
+    createStars();
+    
     // Add fireflies
     createFireflies();
     
@@ -1129,7 +1378,7 @@ function addAtmosphericEffects() {
 
 // Create fireflies for night atmosphere
 function createFireflies() {
-    const fireflyCount = 100;
+    const fireflyCount = 30; // Reduced from 100 to 30
     
     // Create firefly texture
     const fireflyCanvas = document.createElement('canvas');
@@ -1137,11 +1386,11 @@ function createFireflies() {
     fireflyCanvas.height = 32;
     const ctx = fireflyCanvas.getContext('2d');
     
-    // Draw firefly glow
+    // Draw firefly glow - more subtle
     const gradient = ctx.createRadialGradient(16, 16, 0, 16, 16, 16);
-    gradient.addColorStop(0, 'rgba(255, 255, 150, 1)');
-    gradient.addColorStop(0.2, 'rgba(255, 255, 100, 0.8)');
-    gradient.addColorStop(0.5, 'rgba(200, 255, 50, 0.4)');
+    gradient.addColorStop(0, 'rgba(200, 200, 100, 0.8)'); // Less bright
+    gradient.addColorStop(0.2, 'rgba(200, 200, 80, 0.6)'); // Less bright
+    gradient.addColorStop(0.5, 'rgba(150, 200, 50, 0.3)'); // Less bright
     gradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
     
     ctx.fillStyle = gradient;
@@ -1154,16 +1403,16 @@ function createFireflies() {
         const fireflyMaterial = new THREE.SpriteMaterial({
             map: fireflyTexture,
             transparent: true,
-            opacity: 0.8,
+            opacity: 0.5, // Reduced from 0.8 to 0.5
             blending: THREE.AdditiveBlending // Additive blending for glow effect
         });
         
         const firefly = new THREE.Sprite(fireflyMaterial);
         
-        // Random position in the scene
+        // Random position in the scene - keep them more to the edges
         const angle = Math.random() * Math.PI * 2;
-        const radius = Math.random() * 40; // Within the arena
-        const height = Math.random() * 3 + 0.5; // Between 0.5 and 3.5 units high
+        const radius = Math.random() * 20 + 15; // Between 15-35 units from center (more at edges)
+        const height = Math.random() * 2 + 1; // Between 1-3 units high
         
         firefly.position.set(
             Math.cos(angle) * radius,
@@ -1171,18 +1420,18 @@ function createFireflies() {
             Math.sin(angle) * radius
         );
         
-        // Random scale for different firefly sizes
-        const scale = Math.random() * 0.3 + 0.1;
+        // Random scale for different firefly sizes - smaller overall
+        const scale = Math.random() * 0.2 + 0.1; // Reduced size
         firefly.scale.set(scale, scale, 1);
         
         // Add animation data
         firefly.userData = {
             originalY: height,
-            speed: Math.random() * 0.01 + 0.005,
+            speed: Math.random() * 0.005 + 0.002, // Slower movement
             phase: Math.random() * Math.PI * 2,
-            blinkSpeed: Math.random() * 0.1 + 0.05,
+            blinkSpeed: Math.random() * 0.05 + 0.02, // Slower blinking
             lastBlink: Date.now(),
-            blinkInterval: Math.random() * 3000 + 2000 // Random blink interval between 2-5 seconds
+            blinkInterval: Math.random() * 5000 + 3000 // Longer intervals between blinks (3-8 seconds)
         };
         
         scene.add(firefly);
@@ -1192,7 +1441,123 @@ function createFireflies() {
         window.fireflies.push(firefly);
     }
     
-    console.log("Fireflies created");
+    console.log("Fireflies created (reduced quantity)");
+}
+
+// Create stars for the night sky
+function createStars() {
+    // Create a star field with many small bright points
+    const starCount = 1000;
+    const starGeometry = new THREE.BufferGeometry();
+    const starPositions = [];
+    const starColors = [];
+    
+    // Generate random star positions in a dome above the scene
+    for (let i = 0; i < starCount; i++) {
+        // Use spherical distribution for stars
+        const theta = Math.random() * Math.PI * 2; // Around
+        const phi = Math.random() * Math.PI * 0.5; // Above horizon only
+        const radius = 300 + Math.random() * 200; // Far away
+        
+        // Convert spherical to cartesian coordinates
+        const x = radius * Math.sin(phi) * Math.cos(theta);
+        const y = radius * Math.cos(phi); // Up
+        const z = radius * Math.sin(phi) * Math.sin(theta);
+        
+        starPositions.push(x, y, z);
+        
+        // Vary star colors slightly (mostly white with hints of blue/yellow)
+        const colorChoice = Math.random();
+        if (colorChoice > 0.9) {
+            // Blue-ish stars
+            starColors.push(0.8, 0.9, 1.0);
+        } else if (colorChoice > 0.8) {
+            // Yellow-ish stars
+            starColors.push(1.0, 0.9, 0.7);
+        } else {
+            // White stars with varying brightness
+            const brightness = 0.8 + Math.random() * 0.2;
+            starColors.push(brightness, brightness, brightness);
+        }
+    }
+    
+    // Add positions and colors to the geometry
+    starGeometry.setAttribute('position', new THREE.Float32BufferAttribute(starPositions, 3));
+    starGeometry.setAttribute('color', new THREE.Float32BufferAttribute(starColors, 3));
+    
+    // Create material for stars
+    const starMaterial = new THREE.PointsMaterial({
+        size: 0.7,
+        vertexColors: true,
+        transparent: true,
+        opacity: 0.8,
+        sizeAttenuation: false // Stars don't get smaller with distance
+    });
+    
+    // Create the star field
+    const stars = new THREE.Points(starGeometry, starMaterial);
+    scene.add(stars);
+    
+    // Add a few brighter stars with glow
+    for (let i = 0; i < 20; i++) {
+        // Random position in the sky dome
+        const theta = Math.random() * Math.PI * 2;
+        const phi = Math.random() * Math.PI * 0.4; // Higher in the sky
+        const radius = 290;
+        
+        const x = radius * Math.sin(phi) * Math.cos(theta);
+        const y = radius * Math.cos(phi);
+        const z = radius * Math.sin(phi) * Math.sin(theta);
+        
+        // Create a sprite for the bright star
+        const starSprite = new THREE.Sprite(
+            new THREE.SpriteMaterial({
+                map: createStarTexture(),
+                color: 0xFFFFFF,
+                transparent: true,
+                opacity: 0.8,
+                blending: THREE.AdditiveBlending
+            })
+        );
+        
+        starSprite.position.set(x, y, z);
+        starSprite.scale.set(5, 5, 1);
+        
+        // Add animation data for twinkling
+        starSprite.userData = {
+            originalOpacity: 0.8,
+            twinkleSpeed: Math.random() * 0.002 + 0.001,
+            twinklePhase: Math.random() * Math.PI * 2
+        };
+        
+        scene.add(starSprite);
+        
+        // Add to a global array for animation
+        if (!window.brightStars) window.brightStars = [];
+        window.brightStars.push(starSprite);
+    }
+    
+    console.log("Stars created for night sky");
+}
+
+// Create a texture for bright stars with glow
+function createStarTexture() {
+    const canvas = document.createElement('canvas');
+    canvas.width = 32;
+    canvas.height = 32;
+    const ctx = canvas.getContext('2d');
+    
+    // Draw star glow
+    const gradient = ctx.createRadialGradient(16, 16, 0, 16, 16, 16);
+    gradient.addColorStop(0, 'rgba(255, 255, 255, 1)');
+    gradient.addColorStop(0.2, 'rgba(255, 255, 255, 0.8)');
+    gradient.addColorStop(0.5, 'rgba(200, 220, 255, 0.4)');
+    gradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
+    
+    ctx.fillStyle = gradient;
+    ctx.fillRect(0, 0, 32, 32);
+    
+    return new THREE.CanvasTexture(canvas);
 }
 
 // Initialize the game when the page loads
