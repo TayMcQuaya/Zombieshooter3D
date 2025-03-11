@@ -280,10 +280,10 @@ function createTree(x, y, z) {
     
     tree.position.set(x, y + 1, z);
     
-    // Add collision data with larger radius
+    // Add collision data with more accurate radius
     tree.userData = {
         isCollidable: true,
-        radius: 2.0  // Increased from 1.0
+        radius: 0.8  // Reduced from 2.0 to be closer to visual size
     };
     
     scene.add(tree);
@@ -298,13 +298,11 @@ function createRock(x, y, z) {
     const rock = new THREE.Mesh(rockGeo, rockMat);
     
     rock.position.set(x, y + size / 2, z);
-    rock.rotation.y = Math.random() * Math.PI * 2;
-    rock.rotation.z = Math.random() * 0.5 - 0.25;
     
-    // Add collision data with larger radius
+    // Add collision data
     rock.userData = {
         isCollidable: true,
-        radius: size * 3.0  // Increased from size
+        radius: size * 0.8  // Reduced to be closer to visual size
     };
     
     scene.add(rock);

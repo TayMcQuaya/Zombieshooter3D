@@ -62,10 +62,10 @@ function onKeyDown(event) {
     
     switch (event.key.toLowerCase()) {
         case 'w':
-            moveState.forward = true;
+            moveState.forward = true;  // W key maps to forward
             break;
         case 's':
-            moveState.backward = true;
+            moveState.backward = true; // S key maps to backward
             break;
         case 'a':
             moveState.left = true;
@@ -185,10 +185,12 @@ function updatePlayer() {
     let moveX = 0;
     let moveZ = 0;
     
-    if (moveState.forward) moveZ -= 1;
-    if (moveState.backward) moveZ += 1;
-    if (moveState.left) moveX -= 1;
-    if (moveState.right) moveX += 1;
+    // Fixed: W now moves forward (negative Z), S moves backward (positive Z)
+    // But we need to invert the Z direction to match the expected behavior
+    if (moveState.forward) moveZ += 1;  // W key - move forward (into the screen)
+    if (moveState.backward) moveZ -= 1; // S key - move backward (out of the screen)
+    if (moveState.left) moveX -= 1;     // A key - move left
+    if (moveState.right) moveX += 1;    // D key - move right
     
     // Normalize diagonal movement
     if (moveX !== 0 && moveZ !== 0) {
@@ -213,6 +215,8 @@ function updatePlayer() {
         cameraRight.normalize();
         
         // Calculate world space movement
+        // W key (moveState.forward) should move in the direction the camera is facing (negative Z)
+        // S key (moveState.backward) should move in the opposite direction (positive Z)
         const worldMoveX = cameraRight.x * moveX + cameraDirection.x * moveZ;
         const worldMoveZ = cameraRight.z * moveX + cameraDirection.z * moveZ;
         
