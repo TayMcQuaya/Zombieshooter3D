@@ -26,8 +26,8 @@ const COLLISION_BUFFER = 0.1;  // Small buffer to prevent getting too close to o
 
 // Stamina system
 const MAX_STAMINA = 100;
-const STAMINA_DEPLETION_RATE = 0.5;  // How fast stamina depletes when running
-const STAMINA_RECOVERY_RATE = 0.2;   // How fast stamina recovers when not running
+const STAMINA_DEPLETION_RATE = 0.1;  // Reduced from 0.2 for even slower depletion
+const STAMINA_RECOVERY_RATE = 0.1;   // Keeping the same recovery rate
 let currentStamina = MAX_STAMINA;
 let canRun = true;
 
