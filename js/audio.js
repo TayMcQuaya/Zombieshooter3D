@@ -32,16 +32,78 @@ function initAudio() {
     // In a real game, you would use an actual music file
     backgroundMusic.src = 'assets/sounds/background.mp3';
     
-    // Add audio controls to the page (for debugging)
+    // Add themed audio controls to the page
     const audioControls = document.createElement('div');
     audioControls.style.position = 'absolute';
-    audioControls.style.bottom = '10px';
-    audioControls.style.right = '10px';
+    audioControls.style.bottom = '30px';
+    audioControls.style.right = '30px';
     audioControls.style.zIndex = '100';
-    audioControls.innerHTML = `
-        <button id="toggle-sound" style="margin-right: 5px;">Sound: ON</button>
-        <button id="toggle-music">Music: ON</button>
-    `;
+    audioControls.style.display = 'flex';
+    audioControls.style.gap = '20px';
+    
+    // Sound button with zombie theme
+    const soundButton = document.createElement('button');
+    soundButton.id = 'toggle-sound';
+    soundButton.textContent = 'Sound: ON';
+    soundButton.style.padding = '15px 25px';
+    soundButton.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
+    soundButton.style.color = '#ff3333';
+    soundButton.style.border = '3px solid #990000';
+    soundButton.style.borderRadius = '8px';
+    soundButton.style.fontFamily = "'Creepster', cursive";
+    soundButton.style.fontSize = '28px';
+    soundButton.style.cursor = 'pointer';
+    soundButton.style.boxShadow = '0 0 15px #ff0000';
+    soundButton.style.transition = 'all 0.3s ease';
+    soundButton.style.textTransform = 'uppercase';
+    soundButton.style.letterSpacing = '2px';
+    
+    // Add hover effects
+    soundButton.addEventListener('mouseover', () => {
+        soundButton.style.backgroundColor = 'rgba(153, 0, 0, 0.7)';
+        soundButton.style.boxShadow = '0 0 20px #ff0000';
+        soundButton.style.transform = 'scale(1.05)';
+    });
+    
+    soundButton.addEventListener('mouseout', () => {
+        soundButton.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
+        soundButton.style.boxShadow = '0 0 15px #ff0000';
+        soundButton.style.transform = 'scale(1)';
+    });
+    
+    // Music button with zombie theme
+    const musicButton = document.createElement('button');
+    musicButton.id = 'toggle-music';
+    musicButton.textContent = 'Music: ON';
+    musicButton.style.padding = '15px 25px';
+    musicButton.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
+    musicButton.style.color = '#ff3333';
+    musicButton.style.border = '3px solid #990000';
+    musicButton.style.borderRadius = '8px';
+    musicButton.style.fontFamily = "'Creepster', cursive";
+    musicButton.style.fontSize = '28px';
+    musicButton.style.cursor = 'pointer';
+    musicButton.style.boxShadow = '0 0 15px #ff0000';
+    musicButton.style.transition = 'all 0.3s ease';
+    musicButton.style.textTransform = 'uppercase';
+    musicButton.style.letterSpacing = '2px';
+    
+    // Add hover effects
+    musicButton.addEventListener('mouseover', () => {
+        musicButton.style.backgroundColor = 'rgba(153, 0, 0, 0.7)';
+        musicButton.style.boxShadow = '0 0 20px #ff0000';
+        musicButton.style.transform = 'scale(1.05)';
+    });
+    
+    musicButton.addEventListener('mouseout', () => {
+        musicButton.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
+        musicButton.style.boxShadow = '0 0 15px #ff0000';
+        musicButton.style.transform = 'scale(1)';
+    });
+    
+    // Add buttons to controls
+    audioControls.appendChild(soundButton);
+    audioControls.appendChild(musicButton);
     document.body.appendChild(audioControls);
     
     // Set up audio control buttons
@@ -57,18 +119,36 @@ function initAudio() {
 // Toggle sound effects
 function toggleSound() {
     soundEnabled = !soundEnabled;
-    document.getElementById('toggle-sound').textContent = `Sound: ${soundEnabled ? 'ON' : 'OFF'}`;
+    const soundButton = document.getElementById('toggle-sound');
+    soundButton.textContent = `Sound: ${soundEnabled ? 'ON' : 'OFF'}`;
+    
+    // Update button style based on state
+    if (!soundEnabled) {
+        soundButton.style.opacity = '0.7';
+        soundButton.style.boxShadow = '0 0 8px #ff0000';
+    } else {
+        soundButton.style.opacity = '1';
+        soundButton.style.boxShadow = '0 0 15px #ff0000';
+    }
 }
 
 // Toggle background music
 function toggleMusic() {
     musicEnabled = !musicEnabled;
-    document.getElementById('toggle-music').textContent = `Music: ${musicEnabled ? 'ON' : 'OFF'}`;
+    const musicButton = document.getElementById('toggle-music');
+    musicButton.textContent = `Music: ${musicEnabled ? 'ON' : 'OFF'}`;
     
-    if (musicEnabled) {
-        backgroundMusic.play();
-    } else {
+    // Update button style based on state
+    if (!musicEnabled) {
+        musicButton.style.opacity = '0.7';
+        musicButton.style.boxShadow = '0 0 8px #ff0000';
         backgroundMusic.pause();
+    } else {
+        musicButton.style.opacity = '1';
+        musicButton.style.boxShadow = '0 0 15px #ff0000';
+        backgroundMusic.play().catch(e => {
+            console.warn('Could not play background music:', e);
+        });
     }
 }
 
