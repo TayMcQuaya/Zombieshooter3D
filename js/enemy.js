@@ -91,6 +91,7 @@ function spawnEnemyWave() {
 
 // Spawn a single enemy
 function spawnEnemy() {
+    // Create zombie body
     const geo = new THREE.BoxGeometry(1, 2, 1);
     const mat = new THREE.MeshLambertMaterial({ 
         color: zombieColors[Math.floor(Math.random() * zombieColors.length)],
@@ -98,6 +99,76 @@ function spawnEnemy() {
         emissiveIntensity: 0.5
     });
     const mesh = new THREE.Mesh(geo, mat);
+    
+    // Create zombie face (smiley)
+    const faceGeo = new THREE.PlaneGeometry(0.8, 0.8);
+    const faceCanvas = document.createElement('canvas');
+    faceCanvas.width = 128;
+    faceCanvas.height = 128;
+    const ctx = faceCanvas.getContext('2d');
+    
+    // Draw zombie smiley face
+    ctx.fillStyle = 'black';
+    ctx.fillRect(0, 0, 128, 128);
+    
+    // Draw face outline
+    ctx.fillStyle = '#50FF50';
+    ctx.beginPath();
+    ctx.arc(64, 64, 60, 0, Math.PI * 2);
+    ctx.fill();
+    
+    // Draw eyes
+    ctx.fillStyle = 'black';
+    ctx.beginPath();
+    ctx.arc(40, 40, 12, 0, Math.PI * 2); // Left eye socket
+    ctx.arc(88, 40, 12, 0, Math.PI * 2); // Right eye socket
+    ctx.fill();
+    
+    // Draw red pupils
+    ctx.fillStyle = 'red';
+    ctx.beginPath();
+    ctx.arc(40, 40, 6, 0, Math.PI * 2); // Left pupil
+    ctx.arc(88, 40, 6, 0, Math.PI * 2); // Right pupil
+    ctx.fill();
+    
+    // Draw evil smile
+    ctx.fillStyle = 'black';
+    ctx.beginPath();
+    ctx.arc(64, 75, 30, 0, Math.PI);
+    ctx.fill();
+    
+    // Add teeth
+    ctx.fillStyle = 'white';
+    for (let i = 0; i < 5; i++) {
+        ctx.fillRect(44 + i * 10, 75, 5, 10);
+    }
+    
+    // Add some blood dripping
+    ctx.fillStyle = 'darkred';
+    ctx.beginPath();
+    ctx.moveTo(50, 75);
+    ctx.lineTo(45, 100);
+    ctx.lineTo(55, 100);
+    ctx.fill();
+    
+    ctx.beginPath();
+    ctx.moveTo(78, 75);
+    ctx.lineTo(73, 105);
+    ctx.lineTo(83, 105);
+    ctx.fill();
+    
+    // Create texture from canvas
+    const faceTexture = new THREE.CanvasTexture(faceCanvas);
+    const faceMat = new THREE.MeshBasicMaterial({
+        map: faceTexture,
+        transparent: true
+    });
+    const face = new THREE.Mesh(faceGeo, faceMat);
+    
+    // Position face on front of zombie
+    face.position.z = 0.51;
+    face.position.y = 0.5;
+    mesh.add(face);
     
     // Random position at arena edge
     const angle = Math.random() * Math.PI * 2;

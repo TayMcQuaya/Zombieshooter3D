@@ -211,21 +211,30 @@ function updatePlayer() {
 function moveWithCollision(newPosition) {
     // Check for collision with environment if the function exists
     if (typeof window.checkEnvironmentCollision === 'function') {
-        const collision = window.checkEnvironmentCollision(newPosition, PLAYER_RADIUS);
+        // Create a more aggressive collision check
+        const collision = window.checkEnvironmentCollision(newPosition, PLAYER_RADIUS * 1.5);
         
         if (!collision.collided) {
+            // No collision, move to new position
             camera.position.copy(newPosition);
         } else {
+            console.log("Collision detected with object:", collision.object);
+            
             // Calculate slide movement along the collision surface
-            const pushDirection = new THREE.Vector3()
-                .subVectors(camera.position, collision.object.position)
-                .normalize();
-            pushDirection.y = 0;
-            
-            const slidePosition = camera.position.clone()
-                .add(pushDirection.multiplyScalar(collision.penetration));
-            
-            camera.position.copy(slidePosition);
+            if (collision.object && collision.object.position) {
+                const pushDirection = new THREE.Vector3()
+                    .subVectors(camera.position, collision.object.position)
+                    .normalize();
+                
+                // Keep movement on horizontal plane
+                pushDirection.y = 0;
+                
+                // Apply stronger push to prevent clipping
+                const slidePosition = camera.position.clone()
+                    .add(pushDirection.multiplyScalar(collision.penetration * 1.5));
+                
+                camera.position.copy(slidePosition);
+            }
         }
     } else {
         // If collision check isn't available, just move

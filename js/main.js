@@ -81,36 +81,70 @@ function createEnvironment() {
 
 // Create a skybox
 function createSkybox() {
-    const skyboxGeometry = new THREE.BoxGeometry(500, 500, 500);
-    const skyboxMaterials = [
-        new THREE.MeshBasicMaterial({ 
-            color: 0x87CEEB, // Sky blue
-            side: THREE.BackSide 
-        }),
-        new THREE.MeshBasicMaterial({ 
-            color: 0x87CEEB, 
-            side: THREE.BackSide 
-        }),
-        new THREE.MeshBasicMaterial({ 
-            color: 0x87CEEB, 
-            side: THREE.BackSide 
-        }),
-        new THREE.MeshBasicMaterial({ 
-            color: 0x87CEEB, 
-            side: THREE.BackSide 
-        }),
-        new THREE.MeshBasicMaterial({ 
-            color: 0x87CEEB, 
-            side: THREE.BackSide 
-        }),
-        new THREE.MeshBasicMaterial({ 
-            color: 0x87CEEB, 
-            side: THREE.BackSide 
-        })
-    ];
+    // Create a blue sky background
+    scene.background = new THREE.Color(0x87CEEB);
     
-    skybox = new THREE.Mesh(skyboxGeometry, skyboxMaterials);
-    scene.add(skybox);
+    // Add clouds
+    createClouds();
+    
+    console.log("Skybox created");
+}
+
+// Create clouds
+function createClouds() {
+    const cloudCount = 20;
+    
+    // Create cloud texture using canvas
+    const cloudCanvas = document.createElement('canvas');
+    cloudCanvas.width = 128;
+    cloudCanvas.height = 128;
+    const ctx = cloudCanvas.getContext('2d');
+    
+    // Draw cloud
+    ctx.fillStyle = 'rgba(255, 255, 255, 0)';
+    ctx.fillRect(0, 0, 128, 128);
+    
+    // Draw cloud puffs
+    ctx.fillStyle = 'white';
+    ctx.beginPath();
+    ctx.arc(64, 64, 32, 0, Math.PI * 2);
+    ctx.arc(45, 50, 25, 0, Math.PI * 2);
+    ctx.arc(85, 55, 23, 0, Math.PI * 2);
+    ctx.arc(40, 75, 20, 0, Math.PI * 2);
+    ctx.arc(85, 80, 22, 0, Math.PI * 2);
+    ctx.fill();
+    
+    const cloudTexture = new THREE.CanvasTexture(cloudCanvas);
+    
+    for (let i = 0; i < cloudCount; i++) {
+        // Create cloud sprite
+        const cloudMaterial = new THREE.SpriteMaterial({
+            map: cloudTexture,
+            transparent: true,
+            opacity: 0.8
+        });
+        
+        const cloud = new THREE.Sprite(cloudMaterial);
+        
+        // Random position in sky
+        const angle = Math.random() * Math.PI * 2;
+        const radius = Math.random() * 30 + 30; // Between 30 and 60 units from center
+        const height = Math.random() * 20 + 20; // Between 20 and 40 units high
+        
+        cloud.position.set(
+            Math.cos(angle) * radius,
+            height,
+            Math.sin(angle) * radius
+        );
+        
+        // Random scale
+        const scale = Math.random() * 10 + 10;
+        cloud.scale.set(scale, scale, 1);
+        
+        scene.add(cloud);
+    }
+    
+    console.log("Clouds created");
 }
 
 // Create sun
@@ -193,10 +227,10 @@ function createArenaBoundaries() {
         // Add to scene
         scene.add(wall);
         
-        // Add collision data
+        // Add collision data - use a larger radius for walls
         wall.userData = {
             isCollidable: true,
-            radius: 0.5
+            radius: 2.0  // Much larger radius for walls
         };
         
         // Add to environment objects
@@ -246,10 +280,10 @@ function createTree(x, y, z) {
     
     tree.position.set(x, y + 1, z);
     
-    // Add collision data
+    // Add collision data with larger radius
     tree.userData = {
         isCollidable: true,
-        radius: 1
+        radius: 2.0  // Increased from 1.0
     };
     
     scene.add(tree);
@@ -267,10 +301,10 @@ function createRock(x, y, z) {
     rock.rotation.y = Math.random() * Math.PI * 2;
     rock.rotation.z = Math.random() * 0.5 - 0.25;
     
-    // Add collision data
+    // Add collision data with larger radius
     rock.userData = {
         isCollidable: true,
-        radius: size
+        radius: size * 3.0  // Increased from size
     };
     
     scene.add(rock);

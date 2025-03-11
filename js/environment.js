@@ -41,14 +41,18 @@ function checkEnvironmentCollision(position, radius) {
         return { collided: false };
     }
     
+    // More aggressive collision detection
     for (const obj of window.environmentObjects) {
         if (!obj || !obj.position) continue;
         
         if (obj.userData && obj.userData.isCollidable) {
+            // Use a larger collision radius for all objects
+            const objRadius = obj.userData.radius || 1.0;
             const distance = position.distanceTo(obj.position);
-            const minDistance = radius + (obj.userData.radius || 0.5);
+            const minDistance = radius + objRadius * 2.0; // Doubled collision radius
             
             if (distance < minDistance) {
+                console.log("Collision with object at distance:", distance, "min distance:", minDistance);
                 return {
                     collided: true,
                     object: obj,
