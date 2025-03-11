@@ -1,0 +1,244 @@
+Alright, let’s build a simple, fun, and visually slick 3D shooter game for the web browser that could catch fire online! I’ll provide a complete documentation package—tech stack, gameplay mechanics, and technical details—so you can take this straight to Cursor and collaborate with Claude Sonnet to code it. We’ll aim for simplicity (quick to build), addictiveness (fun to play), and a cool factor (neon vibes for that viral aesthetic).
+Here’s the full plan. Copy this into Cursor, and you’re ready to roll!
+Project Documentation: "Neon Strike" - A Simple 3D Web Shooter
+Overview
+Game Name: Neon Strike
+Genre: 3D First-Person Shooter (FPS)
+Platform: Web Browser (Desktop & Mobile Compatible)
+Objective: A fast-paced, minimalist shooter where you blast glowing enemies in a neon-lit arena, chasing a high score. Shareable for viral appeal.
+Tagline: “Survive the glow. Share the score.”
+Target Audience: Casual gamers, social media scrollers, and indie dev enthusiasts.
+Tech Stack
+A lightweight, web-native stack to keep it simple and performant:
+Frontend Basics:  
+HTML5: Hosts the game canvas and UI.  
+CSS: Minimal styling for score, health, and start/game-over screens.  
+JavaScript: Drives game logic, input handling, and rendering.
+3D Rendering:  
+Three.js: Handles 3D scenes, camera, and objects. Perfect for a browser-based 3D game without heavy overhead.
+Physics (Optional but Cool):  
+Cannon.js: Lightweight physics for bullet-enemy collisions and basic movement. Pairs seamlessly with Three.js.
+Audio:  
+Howler.js: Adds sound effects (shots, explosions) and a pulsing background track for immersion.
+Hosting:  
+GitHub Pages: Free, simple deployment for static files. Share a link instantly.  
+Vercel (Optional): For a polished deploy with custom domain potential.
+Tools:  
+Cursor + Claude Sonnet: Your AI-assisted coding environment.  
+Browser DevTools: Test performance and debug.
+Why This Stack?  
+No installs required—purely web-based for instant play.  
+Three.js is beginner-friendly yet powerful for 3D graphics.  
+Minimal dependencies ensure fast load times and broad compatibility.
+Gameplay Mechanics
+A simple, addictive loop with viral potential:
+Core Concept
+Setting: A neon-lit 3D arena (think Tron meets Geometry Wars).  
+Premise: You’re a glowing blaster fending off waves of enemy drones (cubes or spheres) that swarm you. Survive, score, and share!  
+Goal: Rack up points by blasting enemies; game ends when your health hits zero.
+Key Features
+Player Mechanics:  
+Controls:  
+Mouse: Aim (look around).  
+Left Click: Shoot (rapid-fire neon projectiles).  
+WASD: Move (forward, back, strafe).  
+Spacebar: Jump (optional, adds flair).
+Health: 100 HP, loses 10 per enemy collision.  
+Weapon: Infinite ammo, glowing projectiles.
+Enemies:  
+Type: Neon-colored cubes or spheres (simple shapes, easy to render).  
+Behavior: Spawn at arena edges, drift toward player, explode on hit.  
+Waves: Start with 5 enemies; every 20 seconds, spawn count increases (5 → 10 → 15, etc.).
+Scoring:  
+10 points per enemy kill.  
+50-point bonus for clearing a wave without damage.  
+High score persists until game over.
+Visuals & Audio:  
+Aesthetic: Neon glow—pink, blue, purple hues. Glowing player weapon, enemies, and arena borders.  
+Effects: Particle bursts on enemy destruction (Three.js particle system).  
+Sounds: Pew-pew shots, explosion booms, synthwave background track.
+Viral Features:  
+Game Over Screen: Displays score + “Play Again” and “Share Score” buttons.  
+Shareable Link: URL with score embedded (e.g., neonstrike.vercel.app/?score=1234).  
+Social Hook: Pre-filled tweet: “I scored [X] in Neon Strike! Beat me: [URL]”.
+Technical Breakdown
+1. Project Structure
+NeonStrike/
+├── index.html        # Main entry point
+├── styles.css        # UI styling
+├── js/
+│   ├── main.js       # Game setup, loop, and rendering
+│   ├── player.js     # Player movement and shooting
+│   ├── enemy.js      # Enemy spawning and AI
+│   ├── ui.js         # Score, health, and overlays
+│   └── audio.js      # Sound management
+├── assets/
+│   ├── sounds/       # shoot.wav, explode.wav, bgm.mp3
+│   └── textures/     # Optional neon textures
+└── lib/              # Three.js, Howler.js, Cannon.js
+2. Core Components
+A. Scene Setup (main.js)
+Scene: 3D space with a black background.  
+Camera: First-person view (Three.js PerspectiveCamera).  
+Renderer: WebGL tied to a canvas.  
+Arena: Flat plane (50x50 units) with neon-edged borders.
+Code Snippet:
+javascript
+import * as THREE from './lib/three.module.js';
+
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+const renderer = new THREE.WebGLRenderer();
+renderer.setSize(window.innerWidth, window.innerHeight);
+document.body.appendChild(renderer.domElement);
+
+// Arena floor
+const floorGeo = new THREE.PlaneGeometry(50, 50);
+const floorMat = new THREE.MeshBasicMaterial({ color: 0x111111 });
+const floor = new THREE.Mesh(floorGeo, floorMat);
+floor.rotation.x = -Math.PI / 2;
+scene.add(floor);
+
+// Neon borders (optional)
+const edgeGeo = new THREE.BoxGeometry(50, 0.1, 0.1);
+const edgeMat = new THREE.MeshBasicMaterial({ color: 0x00ffff });
+const edge = new THREE.Mesh(edgeGeo, edgeMat);
+edge.position.y = 0.05;
+scene.add(edge);
+
+camera.position.y = 2; // Player height
+B. Player Logic (player.js)
+Movement: WASD adjusts camera position.  
+Aiming: Mouse rotates camera.  
+Shooting: Raycast on click to detect enemy hits.
+Code Snippet:
+javascript
+let move = { forward: false, backward: false, left: false, right: false };
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'w') move.forward = true;
+  if (e.key === 's') move.backward = true;
+  if (e.key === 'a') move.left = true;
+  if (e.key === 'd') move.right = true;
+});
+document.addEventListener('keyup', (e) => {
+  if (e.key === 'w') move.forward = false;
+  // ...other keys
+});
+
+document.addEventListener('mousemove', (e) => {
+  camera.rotation.y -= e.movementX * 0.002;
+  camera.rotation.x = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, camera.rotation.x - e.movementY * 0.002));
+});
+
+document.addEventListener('click', () => {
+  const raycaster = new THREE.Raycaster();
+  raycaster.setFromCamera(new THREE.Vector2(0, 0), camera);
+  const hits = raycaster.intersectObjects(enemies);
+  if (hits.length > 0) {
+    scene.remove(hits[0].object);
+    enemies.splice(enemies.indexOf(hits[0].object), 1);
+    score += 10;
+  }
+});
+
+function updatePlayer() {
+  const speed = 0.1;
+  if (move.forward) camera.position.z -= speed * Math.cos(camera.rotation.y);
+  if (move.backward) camera.position.z += speed * Math.cos(camera.rotation.y);
+  if (move.left) camera.position.x -= speed * Math.sin(camera.rotation.y);
+  if (move.right) camera.position.x += speed * Math.sin(camera.rotation.y);
+}
+C. Enemy Logic (enemy.js)
+Spawning: Random positions at arena edges.  
+Movement: Drift toward player.  
+Collision: Reduce HP if too close.
+Code Snippet:
+javascript
+let enemies = [];
+
+function spawnEnemy() {
+  const geo = new THREE.SphereGeometry(0.5, 16, 16);
+  const mat = new THREE.MeshBasicMaterial({ color: 0xff00ff });
+  const enemy = new THREE.Mesh(geo, mat);
+  enemy.position.set(
+    Math.random() * 40 - 20,
+    0.5,
+    Math.random() * 40 - 20
+  );
+  scene.add(enemy);
+  enemies.push(enemy);
+}
+
+function updateEnemies() {
+  enemies.forEach((enemy) => {
+    enemy.position.lerp(camera.position, 0.02); // Smooth pursuit
+    if (enemy.position.distanceTo(camera.position) < 1) {
+      health -= 10;
+      scene.remove(enemy);
+      enemies.splice(enemies.indexOf(enemy), 1);
+    }
+  });
+}
+
+setInterval(() => {
+  for (let i = 0; i < 5 + Math.floor(score / 100); i++) spawnEnemy();
+}, 2000); // Wave every 2 seconds
+D. UI (ui.js)
+Score & Health: DOM overlays.  
+Game Over: Modal with share options.
+Code Snippet:
+javascript
+const scoreEl = document.getElementById('score');
+const healthEl = document.getElementById('health');
+let score = 0, health = 100;
+
+function updateUI() {
+  scoreEl.textContent = `Score: ${score}`;
+  healthEl.style.width = `${health}%`;
+  if (health <= 0) showGameOver();
+}
+
+function showGameOver() {
+  const modal = document.createElement('div');
+  modal.innerHTML = `
+    <h1>Game Over</h1>
+    <p>Score: ${score}</p>
+    <button onclick="location.reload()">Play Again</button>
+    <button onclick="shareScore()">Share</button>
+  `;
+  document.body.appendChild(modal);
+}
+
+function shareScore() {
+  const url = `${window.location.href}?score=${score}`;
+  window.open(`https://twitter.com/intent/tweet?text=I scored ${score} in Neon Strike! Beat me: ${url}`);
+}
+E. Game Loop (main.js)
+Tie it all together.
+Code Snippet:
+javascript
+function animate() {
+  requestAnimationFrame(animate);
+  updatePlayer();
+  updateEnemies();
+  updateUI();
+  renderer.render(scene, camera);
+}
+animate();
+3. Polish
+Neon Glow: Use MeshLambertMaterial with emissive colors.  
+Particles: Add a simple particle burst on enemy death.  
+Audio: Hook up Howler.js for sound effects.
+Development Roadmap
+Setup (1 hr): Project structure, Three.js basics.  
+Core Gameplay (2-3 hrs): Player movement, shooting, enemy spawning.  
+UI & Scoring (1 hr): Health, score, game over screen.  
+Polish (2 hrs): Neon visuals, sounds, share feature.  
+Deploy (30 min): GitHub Pages or Vercel.
+Total Time: ~6-8 hours (spread over a weekend!).
+Next Steps
+Paste this into Cursor.  
+Ask Claude Sonnet to start with index.html and main.js—build the scene first.  
+Iterate section-by-section (player, enemies, UI).  
+Test in browser as you go—tweak for fun!
+Let me know if you want me to refine anything or dive deeper into a specific part! Ready to vibe code this?
