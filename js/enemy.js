@@ -91,78 +91,32 @@ function spawnEnemyWave() {
 
 // Spawn a single enemy
 function spawnEnemy() {
-    // Create zombie body with a random color
+    // Create zombie body with our detailed zombie skin texture
     const geo = new THREE.BoxGeometry(1, 2, 1);
-    const zombieColor = zombieColors[Math.floor(Math.random() * zombieColors.length)];
-    const mat = new THREE.MeshLambertMaterial({ 
-        color: zombieColor,
-        emissive: 0x202020,
-        emissiveIntensity: 0.5
+    
+    // Use our detailed zombie skin texture
+    const zombieSkinTexture = createZombieSkinTexture();
+    
+    // Create a more realistic material with the texture
+    const mat = new THREE.MeshPhongMaterial({ 
+        map: zombieSkinTexture,
+        bumpMap: zombieSkinTexture,
+        bumpScale: 0.05,
+        shininess: 0,
+        emissive: new THREE.Color(0x003300),
+        emissiveIntensity: 0.2
     });
+    
     const mesh = new THREE.Mesh(geo, mat);
+    mesh.castShadow = true;
+    mesh.receiveShadow = true;
     
-    // Create zombie face (smiley)
+    // Create zombie face with our detailed zombie face texture
     const faceGeo = new THREE.PlaneGeometry(0.8, 0.8);
-    const faceCanvas = document.createElement('canvas');
-    faceCanvas.width = 128;
-    faceCanvas.height = 128;
-    const ctx = faceCanvas.getContext('2d');
     
-    // Clear canvas with transparent background
-    ctx.clearRect(0, 0, 128, 128);
+    // Use our detailed zombie face texture
+    const faceTexture = createZombieFaceTexture();
     
-    // Convert zombie color to CSS color string
-    const colorObj = new THREE.Color(zombieColor);
-    const cssColor = `rgb(${Math.floor(colorObj.r * 255)}, ${Math.floor(colorObj.g * 255)}, ${Math.floor(colorObj.b * 255)})`;
-    
-    // Draw face outline using the same color as the body
-    ctx.fillStyle = cssColor;
-    ctx.beginPath();
-    ctx.arc(64, 64, 60, 0, Math.PI * 2);
-    ctx.fill();
-    
-    // Draw eyes
-    ctx.fillStyle = 'black';
-    ctx.beginPath();
-    ctx.arc(40, 40, 12, 0, Math.PI * 2); // Left eye socket
-    ctx.arc(88, 40, 12, 0, Math.PI * 2); // Right eye socket
-    ctx.fill();
-    
-    // Draw red pupils
-    ctx.fillStyle = 'red';
-    ctx.beginPath();
-    ctx.arc(40, 40, 6, 0, Math.PI * 2); // Left pupil
-    ctx.arc(88, 40, 6, 0, Math.PI * 2); // Right pupil
-    ctx.fill();
-    
-    // Draw evil smile
-    ctx.fillStyle = 'black';
-    ctx.beginPath();
-    ctx.arc(64, 75, 30, 0, Math.PI);
-    ctx.fill();
-    
-    // Add teeth
-    ctx.fillStyle = 'white';
-    for (let i = 0; i < 5; i++) {
-        ctx.fillRect(44 + i * 10, 75, 5, 10);
-    }
-    
-    // Add some blood dripping
-    ctx.fillStyle = 'darkred';
-    ctx.beginPath();
-    ctx.moveTo(50, 75);
-    ctx.lineTo(45, 100);
-    ctx.lineTo(55, 100);
-    ctx.fill();
-    
-    ctx.beginPath();
-    ctx.moveTo(78, 75);
-    ctx.lineTo(73, 105);
-    ctx.lineTo(83, 105);
-    ctx.fill();
-    
-    // Create texture from canvas
-    const faceTexture = new THREE.CanvasTexture(faceCanvas);
     const faceMat = new THREE.MeshBasicMaterial({
         map: faceTexture,
         transparent: true
@@ -173,6 +127,48 @@ function spawnEnemy() {
     face.position.z = 0.51;
     face.position.y = 0.5;
     mesh.add(face);
+    
+    // Add limbs with the same zombie skin texture
+    
+    // Arms
+    const armGeo = new THREE.BoxGeometry(0.25, 0.8, 0.25);
+    
+    // Left arm
+    const leftArm = new THREE.Mesh(armGeo, mat);
+    leftArm.position.x = -0.6;
+    leftArm.position.y = 0;
+    leftArm.rotation.z = Math.random() * 0.4 - 0.2;
+    leftArm.castShadow = true;
+    mesh.add(leftArm);
+    
+    // Right arm
+    const rightArm = new THREE.Mesh(armGeo, mat);
+    rightArm.position.x = 0.6;
+    rightArm.position.y = 0;
+    rightArm.rotation.z = Math.random() * 0.4 - 0.2;
+    rightArm.castShadow = true;
+    mesh.add(rightArm);
+    
+    // Legs
+    const legGeo = new THREE.BoxGeometry(0.25, 0.8, 0.25);
+    
+    // Left leg
+    const leftLeg = new THREE.Mesh(legGeo, mat);
+    leftLeg.position.x = -0.2;
+    leftLeg.position.y = -1;
+    leftLeg.castShadow = true;
+    mesh.add(leftLeg);
+    
+    // Right leg
+    const rightLeg = new THREE.Mesh(legGeo, mat);
+    rightLeg.position.x = 0.2;
+    rightLeg.position.y = -1;
+    rightLeg.castShadow = true;
+    mesh.add(rightLeg);
+    
+    // Add some random rotation to make zombies look more shambling
+    mesh.rotation.x = Math.random() * 0.2 - 0.1;
+    mesh.rotation.z = Math.random() * 0.2 - 0.1;
     
     // Random position at arena edge
     const angle = Math.random() * Math.PI * 2;
@@ -194,11 +190,14 @@ function spawnEnemy() {
         targetY: 1,
         originalScale: mesh.scale.clone(),
         originalMaterialProps: {
-            color: mesh.material.color.getHex(),
-            emissive: mesh.material.emissive.getHex(),
-            emissiveIntensity: mesh.material.emissiveIntensity || 0.5
+            color: mat.color.getHex(),
+            emissive: mat.emissive.getHex(),
+            emissiveIntensity: mat.emissiveIntensity || 0.2
         }
     };
+    
+    // Add blood splatter effects on random parts of the zombie
+    addBloodSplatter(mesh);
     
     scene.add(mesh);
     enemies.push(enemy);
@@ -233,17 +232,22 @@ function hitEnemy(enemy) {
     if (!enemy.originalMaterialProps) {
         // Store original material properties
         enemy.originalMaterialProps = {
-            color: enemy.mesh.material.color.getHex(),
             emissive: enemy.mesh.material.emissive.getHex(),
-            emissiveIntensity: enemy.mesh.material.emissiveIntensity || 0.5
+            emissiveIntensity: enemy.mesh.material.emissiveIntensity || 0.2
         };
     }
     
-    // Visual feedback - change to bright red
-    // This approach overrides both the base color and emissive color for a more consistent red
-    enemy.mesh.material.color.setHex(0xff0000);     // Set base color to red
+    // Visual feedback - make zombie glow red when hit
     enemy.mesh.material.emissive.setHex(0xff0000);  // Set emissive to red
     enemy.mesh.material.emissiveIntensity = 0.8;    // Strong emissive effect
+    
+    // Apply the same effect to all limbs
+    enemy.mesh.children.forEach(child => {
+        if (child.material && child.material.emissive) {
+            child.material.emissive.setHex(0xff0000);
+            child.material.emissiveIntensity = 0.8;
+        }
+    });
     
     // Add a slight scale effect (make zombie slightly larger when hit)
     enemy.mesh.scale.set(
@@ -251,6 +255,68 @@ function hitEnemy(enemy) {
         enemy.originalScale.y * 1.2,
         enemy.originalScale.z * 1.2
     );
+    
+    // Add a new blood splatter at the hit location
+    const hitPosition = new THREE.Vector3(
+        Math.random() * 0.8 - 0.4,
+        Math.random() * 1.6 - 0.8,
+        0.51
+    );
+    
+    // Create blood splatter
+    const splatterGeo = new THREE.PlaneGeometry(0.4 + Math.random() * 0.3, 0.4 + Math.random() * 0.3);
+    
+    // Create blood texture
+    const canvas = document.createElement('canvas');
+    canvas.width = 128;
+    canvas.height = 128;
+    const ctx = canvas.getContext('2d');
+    
+    // Draw blood splatter
+    ctx.fillStyle = 'rgba(0, 0, 0, 0)';
+    ctx.fillRect(0, 0, 128, 128);
+    
+    // Blood color - brighter red for fresh blood
+    ctx.fillStyle = `rgba(${200 + Math.random() * 55}, ${10 + Math.random() * 20}, ${10 + Math.random() * 20}, 0.95)`;
+    
+    // Create splatter shape
+    ctx.beginPath();
+    ctx.arc(64, 64, 40 + Math.random() * 20, 0, Math.PI * 2);
+    ctx.fill();
+    
+    // Add drips
+    const dripCount = 4 + Math.floor(Math.random() * 4);
+    for (let j = 0; j < dripCount; j++) {
+        const angle = Math.random() * Math.PI * 2;
+        const length = 30 + Math.random() * 40;
+        const width = 8 + Math.random() * 12;
+        
+        const x = 64 + Math.cos(angle) * 30;
+        const y = 64 + Math.sin(angle) * 30;
+        
+        ctx.beginPath();
+        ctx.moveTo(x, y);
+        ctx.lineTo(x + Math.cos(angle) * length, y + Math.sin(angle) * length);
+        ctx.lineWidth = width;
+        ctx.strokeStyle = `rgba(${200 + Math.random() * 55}, ${10 + Math.random() * 20}, ${10 + Math.random() * 20}, 0.9)`;
+        ctx.stroke();
+    }
+    
+    // Create texture
+    const splatterTexture = new THREE.CanvasTexture(canvas);
+    
+    // Create material
+    const splatterMat = new THREE.MeshBasicMaterial({
+        map: splatterTexture,
+        transparent: true,
+        side: THREE.DoubleSide
+    });
+    
+    // Create mesh
+    const splatter = new THREE.Mesh(splatterGeo, splatterMat);
+    splatter.position.copy(hitPosition);
+    splatter.rotation.z = Math.random() * Math.PI * 2;
+    enemy.mesh.add(splatter);
     
     // Play hit sound
     if (typeof playSound === 'function') {
@@ -349,17 +415,29 @@ function updateEnemies() {
             
             // Reset material properties to original values
             if (enemy.originalMaterialProps) {
-                // Restore original color
-                enemy.mesh.material.color.setHex(enemy.originalMaterialProps.color);
-                
                 // Restore original emissive properties
                 enemy.mesh.material.emissive.setHex(enemy.originalMaterialProps.emissive);
                 enemy.mesh.material.emissiveIntensity = enemy.originalMaterialProps.emissiveIntensity;
+                
+                // Reset emissive properties on all limbs
+                enemy.mesh.children.forEach(child => {
+                    if (child.material && child.material.emissive) {
+                        child.material.emissive.setHex(enemy.originalMaterialProps.emissive);
+                        child.material.emissiveIntensity = enemy.originalMaterialProps.emissiveIntensity;
+                    }
+                });
             } else {
                 // Fallback to default values if original properties weren't stored
-                enemy.mesh.material.color.setHex(zombieColors[0]); // Use first zombie color as default
-                enemy.mesh.material.emissive.setHex(0x202020);
-                enemy.mesh.material.emissiveIntensity = 0.5;
+                enemy.mesh.material.emissive.setHex(0x003300);
+                enemy.mesh.material.emissiveIntensity = 0.2;
+                
+                // Reset all limbs
+                enemy.mesh.children.forEach(child => {
+                    if (child.material && child.material.emissive) {
+                        child.material.emissive.setHex(0x003300);
+                        child.material.emissiveIntensity = 0.2;
+                    }
+                });
             }
             
             // Reset scale
@@ -453,6 +531,9 @@ function destroyEnemy(enemy) {
     // Create explosion effect
     createExplosionEffect(enemy.mesh.position, 0xff0000);
     
+    // Create dismemberment effect - break zombie into pieces
+    createDismembermentEffect(enemy);
+    
     // Play explosion sound
     if (typeof playSound === 'function') {
         playSound('explode');
@@ -490,6 +571,125 @@ function destroyEnemy(enemy) {
     }
 }
 
+// Create dismemberment effect - break zombie into pieces
+function createDismembermentEffect(enemy) {
+    const position = enemy.mesh.position.clone();
+    const rotation = enemy.mesh.rotation.clone();
+    
+    // Create zombie parts
+    const parts = [];
+    
+    // Create torso part
+    const torsoGeo = new THREE.BoxGeometry(1, 1, 0.5);
+    const torsoMat = enemy.mesh.material.clone();
+    const torso = new THREE.Mesh(torsoGeo, torsoMat);
+    torso.position.copy(position);
+    torso.position.y += 0.25;
+    torso.rotation.copy(rotation);
+    scene.add(torso);
+    
+    // Create head part
+    const headGeo = new THREE.BoxGeometry(0.6, 0.6, 0.6);
+    const headMat = enemy.mesh.material.clone();
+    const head = new THREE.Mesh(headGeo, headMat);
+    head.position.copy(position);
+    head.position.y += 1;
+    head.rotation.copy(rotation);
+    scene.add(head);
+    
+    // Create limbs
+    const limbGeo = new THREE.BoxGeometry(0.25, 0.8, 0.25);
+    const limbMat = enemy.mesh.material.clone();
+    
+    // Left arm
+    const leftArm = new THREE.Mesh(limbGeo, limbMat);
+    leftArm.position.copy(position);
+    leftArm.position.x -= 0.6;
+    leftArm.position.y += 0.25;
+    leftArm.rotation.copy(rotation);
+    scene.add(leftArm);
+    
+    // Right arm
+    const rightArm = new THREE.Mesh(limbGeo, limbMat);
+    rightArm.position.copy(position);
+    rightArm.position.x += 0.6;
+    rightArm.position.y += 0.25;
+    rightArm.rotation.copy(rotation);
+    scene.add(rightArm);
+    
+    // Left leg
+    const leftLeg = new THREE.Mesh(limbGeo, limbMat);
+    leftLeg.position.copy(position);
+    leftLeg.position.x -= 0.2;
+    leftLeg.position.y -= 0.5;
+    leftLeg.rotation.copy(rotation);
+    scene.add(leftLeg);
+    
+    // Right leg
+    const rightLeg = new THREE.Mesh(limbGeo, limbMat);
+    rightLeg.position.copy(position);
+    rightLeg.position.x += 0.2;
+    rightLeg.position.y -= 0.5;
+    rightLeg.rotation.copy(rotation);
+    scene.add(rightLeg);
+    
+    // Add all parts to the array
+    parts.push(torso, head, leftArm, rightArm, leftLeg, rightLeg);
+    
+    // Add blood splatter to each part
+    parts.forEach(part => {
+        // Create blood texture
+        const canvas = document.createElement('canvas');
+        canvas.width = 128;
+        canvas.height = 128;
+        const ctx = canvas.getContext('2d');
+        
+        // Draw blood splatter
+        ctx.fillStyle = 'rgba(150, 10, 10, 0.9)';
+        ctx.fillRect(0, 0, 128, 128);
+        
+        // Create texture
+        const bloodTexture = new THREE.CanvasTexture(canvas);
+        
+        // Create blood plane
+        const bloodGeo = new THREE.PlaneGeometry(part.geometry.parameters.width * 1.2, part.geometry.parameters.height * 1.2);
+        const bloodMat = new THREE.MeshBasicMaterial({
+            map: bloodTexture,
+            transparent: true,
+            opacity: 0.8,
+            side: THREE.DoubleSide
+        });
+        
+        const blood = new THREE.Mesh(bloodGeo, bloodMat);
+        blood.position.z = 0.3;
+        part.add(blood);
+    });
+    
+    // Add physics to each part
+    parts.forEach(part => {
+        const velocity = new THREE.Vector3(
+            (Math.random() - 0.5) * 0.2,
+            Math.random() * 0.3,
+            (Math.random() - 0.5) * 0.2
+        );
+        
+        const rotationVel = new THREE.Vector3(
+            (Math.random() - 0.5) * 0.2,
+            (Math.random() - 0.5) * 0.2,
+            (Math.random() - 0.5) * 0.2
+        );
+        
+        // Add to particles array with creation time
+        particles.push({
+            mesh: part,
+            velocity: velocity,
+            rotationVel: rotationVel,
+            created: Date.now(),
+            isDismembered: true
+        });
+    });
+}
+
 // Clear all enemies and particles
 function clearEnemies() {
     enemies.forEach(enemy => {
@@ -512,28 +712,115 @@ function createExplosionEffect(position, color) {
     // Limit total particles
     if (particles.length >= MAX_PARTICLES) return;
     
-    const particleCount = Math.min(10, MAX_PARTICLES - particles.length);
+    // Create a bright flash of light
+    const flash = new THREE.PointLight(0xff0000, 3, 8);
+    flash.position.copy(position);
+    flash.position.y += 1; // Adjust height for zombie center mass
+    scene.add(flash);
     
+    // Animate the flash intensity
+    let intensity = 3;
+    const fadeOut = setInterval(() => {
+        intensity -= 0.3;
+        if (intensity <= 0) {
+            clearInterval(fadeOut);
+            scene.remove(flash);
+        } else {
+            flash.intensity = intensity;
+        }
+    }, 30);
+    
+    // Create explosion particles - more particles for a bigger effect
+    const particleCount = Math.min(20, MAX_PARTICLES - particles.length);
+    
+    // Create different types of particles for a more varied effect
     for (let i = 0; i < particleCount; i++) {
-        const particle = new THREE.Mesh(
-            new THREE.SphereGeometry(0.1, 8, 8),
-            new THREE.MeshBasicMaterial({ color: color })
+        // Determine particle type
+        const particleType = Math.random();
+        let particleGeo, particleMat;
+        
+        if (particleType < 0.3) {
+            // Fire particles (orange/red)
+            particleGeo = new THREE.SphereGeometry(0.1 + Math.random() * 0.15, 8, 8);
+            particleMat = new THREE.MeshBasicMaterial({ 
+                color: new THREE.Color(
+                    0.9 + Math.random() * 0.1, // Red
+                    0.3 + Math.random() * 0.4, // Green
+                    0.0 + Math.random() * 0.2  // Blue
+                ),
+                transparent: true,
+                opacity: 0.9
+            });
+        } else if (particleType < 0.6) {
+            // Smoke particles (dark gray)
+            particleGeo = new THREE.SphereGeometry(0.15 + Math.random() * 0.2, 8, 8);
+            particleMat = new THREE.MeshBasicMaterial({ 
+                color: new THREE.Color(
+                    0.2 + Math.random() * 0.1, // Red
+                    0.2 + Math.random() * 0.1, // Green
+                    0.2 + Math.random() * 0.1  // Blue
+                ),
+                transparent: true,
+                opacity: 0.7
+            });
+        } else if (particleType < 0.9) {
+            // Blood particles (dark red)
+            particleGeo = new THREE.SphereGeometry(0.08 + Math.random() * 0.12, 8, 8);
+            particleMat = new THREE.MeshBasicMaterial({ 
+                color: new THREE.Color(
+                    0.7 + Math.random() * 0.2, // Red
+                    0.0 + Math.random() * 0.1, // Green
+                    0.0 + Math.random() * 0.1  // Blue
+                ),
+                transparent: true,
+                opacity: 0.8
+            });
+        } else {
+            // Bone fragments (off-white)
+            particleGeo = new THREE.BoxGeometry(
+                0.05 + Math.random() * 0.1,
+                0.05 + Math.random() * 0.1,
+                0.05 + Math.random() * 0.1
+            );
+            particleMat = new THREE.MeshBasicMaterial({ 
+                color: new THREE.Color(
+                    0.9 + Math.random() * 0.1, // Red
+                    0.85 + Math.random() * 0.1, // Green
+                    0.8 + Math.random() * 0.1  // Blue
+                )
+            });
+        }
+        
+        const particle = new THREE.Mesh(particleGeo, particleMat);
+        
+        // Position at explosion center with slight randomness
+        particle.position.copy(position);
+        particle.position.x += (Math.random() - 0.5) * 0.3;
+        particle.position.y += 1 + (Math.random() - 0.5) * 0.3;
+        particle.position.z += (Math.random() - 0.5) * 0.3;
+        
+        // Add more explosive velocity
+        const velocity = new THREE.Vector3(
+            (Math.random() - 0.5) * 0.3,
+            Math.random() * 0.3,
+            (Math.random() - 0.5) * 0.3
         );
         
-        particle.position.copy(position);
-        particle.position.y += 1;
-        
-        const velocity = new THREE.Vector3(
-            Math.random() * 0.2 - 0.1,
-            Math.random() * 0.2,
-            Math.random() * 0.2 - 0.1
+        // Add rotation for more realistic movement
+        const rotationVel = new THREE.Vector3(
+            (Math.random() - 0.5) * 0.2,
+            (Math.random() - 0.5) * 0.2,
+            (Math.random() - 0.5) * 0.2
         );
         
         scene.add(particle);
         particles.push({
             mesh: particle,
             velocity: velocity,
-            created: Date.now()
+            rotationVel: rotationVel,
+            created: Date.now(),
+            opacity: particleMat.opacity || 1.0,
+            isExplosion: true
         });
     }
 }
@@ -545,27 +832,262 @@ function updateParticles() {
     for (let i = particles.length - 1; i >= 0; i--) {
         const particle = particles[i];
         
+        // Store previous position for collision detection
+        const prevY = particle.mesh.position.y;
+        
         // Move particle
         particle.mesh.position.add(particle.velocity);
         particle.velocity.y -= 0.005; // Apply gravity
         
+        // Apply rotation for particles with rotation velocity
+        if (particle.rotationVel) {
+            particle.mesh.rotation.x += particle.rotationVel.x;
+            particle.mesh.rotation.y += particle.rotationVel.y;
+            particle.mesh.rotation.z += particle.rotationVel.z;
+        }
+        
+        // Check for ground collision
+        if (prevY > 0 && particle.mesh.position.y <= 0) {
+            // Hit the ground
+            particle.mesh.position.y = 0; // Place on ground
+            
+            // Bounce with reduced velocity
+            if (particle.isDismembered) {
+                // Dismembered parts bounce less
+                particle.velocity.y = -particle.velocity.y * 0.3;
+                
+                // Slow down horizontal movement due to friction
+                particle.velocity.x *= 0.7;
+                particle.velocity.z *= 0.7;
+                
+                // Create blood splatter on ground if it's a dismembered part
+                createGroundBloodSplatter(particle.mesh.position);
+                
+                // Play impact sound
+                if (typeof playSound === 'function' && Math.random() < 0.3) {
+                    playSound('hit');
+                }
+            } else {
+                // Regular particles bounce more
+                particle.velocity.y = -particle.velocity.y * 0.5;
+            }
+            
+            // If velocity is very low, stop bouncing
+            if (Math.abs(particle.velocity.y) < 0.02) {
+                particle.velocity.y = 0;
+            }
+        }
+        
         // Fade out particles over time
-        if (particle.opacity) {
+        if (particle.opacity !== undefined) {
             particle.opacity -= 0.02;
             if (particle.opacity <= 0) {
                 particle.opacity = 0;
             }
-            particle.mesh.material.opacity = particle.opacity;
+            if (particle.mesh.material && particle.mesh.material.opacity !== undefined) {
+                particle.mesh.material.opacity = particle.opacity;
+            }
         }
         
-        // Remove old particles
-        if (now - particle.created > 1000) {
-            scene.remove(particle.mesh);
-            particle.mesh.geometry.dispose();
-            particle.mesh.material.dispose();
-            particles.splice(i, 1);
+        // Special handling for dismembered parts
+        if (particle.isDismembered) {
+            // Keep dismembered parts around longer
+            if (now - particle.created > 3000) {
+                // Start fading out dismembered parts after 3 seconds
+                if (particle.opacity === undefined) {
+                    particle.opacity = 1.0;
+                }
+                particle.opacity -= 0.02;
+                
+                if (particle.opacity <= 0) {
+                    // Remove when fully faded
+                    scene.remove(particle.mesh);
+                    if (particle.mesh.geometry) particle.mesh.geometry.dispose();
+                    if (particle.mesh.material) particle.mesh.material.dispose();
+                    particles.splice(i, 1);
+                } else {
+                    // Apply opacity to the part and its blood splatter
+                    if (particle.mesh.material) {
+                        particle.mesh.material.opacity = particle.opacity;
+                    }
+                    if (particle.mesh.children.length > 0 && particle.mesh.children[0].material) {
+                        particle.mesh.children[0].material.opacity = particle.opacity;
+                    }
+                }
+            }
+        } 
+        // Special handling for ground blood splatters
+        else if (particle.isGroundSplatter) {
+            // Keep blood splatters for a longer time, then fade them out
+            if (now > particle.fadeStartTime) {
+                // Start fading after the specified time
+                if (particle.opacity === undefined) {
+                    particle.opacity = 0.8;
+                }
+                
+                // Fade out more slowly than other particles
+                particle.opacity -= 0.01;
+                
+                if (particle.opacity <= 0) {
+                    // Remove when fully faded
+                    scene.remove(particle.mesh);
+                    if (particle.mesh.geometry) particle.mesh.geometry.dispose();
+                    if (particle.mesh.material) particle.mesh.material.dispose();
+                    particles.splice(i, 1);
+                } else {
+                    // Apply opacity
+                    if (particle.mesh.material) {
+                        particle.mesh.material.opacity = particle.opacity;
+                    }
+                }
+            }
+        }
+        // Special handling for explosion particles
+        else if (particle.isExplosion) {
+            // Add special effects for explosion particles
+            
+            // Gradually increase size for smoke particles (dark gray)
+            if (particle.mesh.material && 
+                particle.mesh.material.color && 
+                particle.mesh.material.color.r < 0.3 &&
+                particle.mesh.material.color.g < 0.3 &&
+                particle.mesh.material.color.b < 0.3) {
+                
+                // Slowly increase size for smoke effect
+                particle.mesh.scale.x += 0.01;
+                particle.mesh.scale.y += 0.01;
+                particle.mesh.scale.z += 0.01;
+                
+                // Fade out faster
+                if (particle.opacity !== undefined) {
+                    particle.opacity -= 0.03;
+                    particle.mesh.material.opacity = particle.opacity;
+                }
+            }
+            
+            // Make fire particles flicker
+            if (particle.mesh.material && 
+                particle.mesh.material.color && 
+                particle.mesh.material.color.r > 0.8 &&
+                particle.mesh.material.color.g > 0.2 &&
+                particle.mesh.material.color.g < 0.7) {
+                
+                // Random flickering intensity
+                if (Math.random() > 0.5) {
+                    particle.mesh.material.color.g += 0.05;
+                } else {
+                    particle.mesh.material.color.g -= 0.05;
+                    if (particle.mesh.material.color.g < 0.2) {
+                        particle.mesh.material.color.g = 0.2;
+                    }
+                }
+            }
+            
+            // Remove explosion particles after 1.5 seconds
+            if (now - particle.created > 1500) {
+                scene.remove(particle.mesh);
+                if (particle.mesh.geometry) particle.mesh.geometry.dispose();
+                if (particle.mesh.material) particle.mesh.material.dispose();
+                particles.splice(i, 1);
+            }
+        }
+        // Regular particles
+        else {
+            // Remove old regular particles
+            if (now - particle.created > 1000) {
+                scene.remove(particle.mesh);
+                if (particle.mesh.geometry) particle.mesh.geometry.dispose();
+                if (particle.mesh.material) particle.mesh.material.dispose();
+                particles.splice(i, 1);
+            }
         }
     }
+}
+
+// Create blood splatter on the ground
+function createGroundBloodSplatter(position) {
+    // Create a blood pool on the ground
+    const size = 0.5 + Math.random() * 0.5;
+    const splatterGeo = new THREE.PlaneGeometry(size, size);
+    
+    // Create blood texture
+    const canvas = document.createElement('canvas');
+    canvas.width = 128;
+    canvas.height = 128;
+    const ctx = canvas.getContext('2d');
+    
+    // Draw blood splatter
+    ctx.fillStyle = 'rgba(0, 0, 0, 0)';
+    ctx.fillRect(0, 0, 128, 128);
+    
+    // Blood color
+    const bloodColor = `rgba(${150 + Math.random() * 50}, ${10 + Math.random() * 20}, ${10 + Math.random() * 20}, 0.9)`;
+    ctx.fillStyle = bloodColor;
+    
+    // Create irregular blood pool shape
+    ctx.beginPath();
+    const centerX = 64;
+    const centerY = 64;
+    const radius = 50;
+    
+    // Create irregular shape with multiple arcs
+    for (let angle = 0; angle < Math.PI * 2; angle += Math.PI / 8) {
+        const radiusVariation = radius * (0.7 + Math.random() * 0.6);
+        const x = centerX + Math.cos(angle) * radiusVariation;
+        const y = centerY + Math.sin(angle) * radiusVariation;
+        
+        if (angle === 0) {
+            ctx.moveTo(x, y);
+        } else {
+            ctx.lineTo(x, y);
+        }
+    }
+    
+    ctx.closePath();
+    ctx.fill();
+    
+    // Add some darker spots for depth
+    for (let i = 0; i < 5; i++) {
+        const spotX = centerX + (Math.random() - 0.5) * 80;
+        const spotY = centerY + (Math.random() - 0.5) * 80;
+        const spotRadius = 5 + Math.random() * 15;
+        
+        ctx.beginPath();
+        ctx.arc(spotX, spotY, spotRadius, 0, Math.PI * 2);
+        ctx.fillStyle = 'rgba(100, 0, 0, 0.7)';
+        ctx.fill();
+    }
+    
+    // Create texture
+    const splatterTexture = new THREE.CanvasTexture(canvas);
+    
+    // Create material
+    const splatterMat = new THREE.MeshBasicMaterial({
+        map: splatterTexture,
+        transparent: true,
+        opacity: 0.8,
+        side: THREE.DoubleSide
+    });
+    
+    // Create mesh
+    const splatter = new THREE.Mesh(splatterGeo, splatterMat);
+    
+    // Position on ground with slight offset to prevent z-fighting
+    splatter.position.copy(position);
+    splatter.position.y = 0.01;
+    splatter.rotation.x = -Math.PI / 2; // Lay flat on ground
+    
+    scene.add(splatter);
+    
+    // Add to particles array with long lifetime
+    particles.push({
+        mesh: splatter,
+        velocity: new THREE.Vector3(0, 0, 0),
+        created: Date.now(),
+        opacity: 0.8,
+        isGroundSplatter: true,
+        fadeStartTime: Date.now() + 5000 // Start fading after 5 seconds
+    });
 }
 
 // Create hit effect at position
@@ -620,6 +1142,434 @@ function createHitEffect(position, color) {
             created: Date.now(),
             opacity: 0.8
         });
+    }
+}
+
+// Create a detailed zombie skin texture
+function createZombieSkinTexture() {
+    const canvas = document.createElement('canvas');
+    canvas.width = 512;
+    canvas.height = 512;
+    const ctx = canvas.getContext('2d');
+    
+    // Base zombie skin color - sickly green
+    const baseColor = {
+        r: 100 + Math.floor(Math.random() * 30),
+        g: 150 + Math.floor(Math.random() * 30),
+        b: 80 + Math.floor(Math.random() * 20)
+    };
+    
+    // Fill with base zombie skin color
+    ctx.fillStyle = `rgb(${baseColor.r}, ${baseColor.g}, ${baseColor.b})`;
+    ctx.fillRect(0, 0, 512, 512);
+    
+    // Add mottled skin effect
+    for (let i = 0; i < 2000; i++) {
+        const x = Math.random() * 512;
+        const y = Math.random() * 512;
+        const size = 1 + Math.random() * 5;
+        
+        // Vary between darker and lighter spots
+        let spotColor;
+        if (Math.random() < 0.7) {
+            // Darker spots (decay)
+            spotColor = `rgba(${baseColor.r * 0.6}, ${baseColor.g * 0.6}, ${baseColor.b * 0.5}, ${0.3 + Math.random() * 0.4})`;
+        } else {
+            // Lighter spots (exposed flesh)
+            spotColor = `rgba(${baseColor.r * 1.2}, ${baseColor.g * 0.8}, ${baseColor.b * 0.7}, ${0.2 + Math.random() * 0.3})`;
+        }
+        
+        ctx.beginPath();
+        ctx.arc(x, y, size, 0, Math.PI * 2);
+        ctx.fillStyle = spotColor;
+        ctx.fill();
+    }
+    
+    // Add veins
+    for (let i = 0; i < 30; i++) {
+        const startX = Math.random() * 512;
+        const startY = Math.random() * 512;
+        let x = startX;
+        let y = startY;
+        
+        ctx.beginPath();
+        ctx.moveTo(x, y);
+        
+        // Create a jagged, branching vein
+        const segments = 5 + Math.floor(Math.random() * 10);
+        for (let j = 0; j < segments; j++) {
+            x += (Math.random() * 40) - 20;
+            y += (Math.random() * 40) - 20;
+            ctx.lineTo(x, y);
+            
+            // Add a branch occasionally
+            if (Math.random() < 0.3) {
+                const branchX = x + (Math.random() * 30) - 15;
+                const branchY = y + (Math.random() * 30) - 15;
+                ctx.lineTo(branchX, branchY);
+                ctx.lineTo(x, y); // Return to main vein
+            }
+        }
+        
+        // Dark purple/blue veins
+        ctx.strokeStyle = `rgba(${30 + Math.random() * 20}, ${10 + Math.random() * 20}, ${50 + Math.random() * 30}, ${0.3 + Math.random() * 0.4})`;
+        ctx.lineWidth = 1 + Math.random() * 2;
+        ctx.stroke();
+    }
+    
+    // Add wounds and gashes
+    for (let i = 0; i < 10; i++) {
+        const x = Math.random() * 512;
+        const y = Math.random() * 512;
+        const width = 5 + Math.random() * 30;
+        const height = 3 + Math.random() * 15;
+        const angle = Math.random() * Math.PI;
+        
+        ctx.save();
+        ctx.translate(x, y);
+        ctx.rotate(angle);
+        
+        // Draw wound
+        ctx.beginPath();
+        ctx.ellipse(0, 0, width, height, 0, 0, Math.PI * 2);
+        ctx.fillStyle = 'rgba(120, 20, 20, 0.8)'; // Dark red
+        ctx.fill();
+        
+        // Add darker center
+        ctx.beginPath();
+        ctx.ellipse(0, 0, width * 0.7, height * 0.7, 0, 0, Math.PI * 2);
+        ctx.fillStyle = 'rgba(80, 10, 10, 0.9)'; // Darker red
+        ctx.fill();
+        
+        ctx.restore();
+    }
+    
+    // Add some bone showing through
+    for (let i = 0; i < 5; i++) {
+        const x = Math.random() * 512;
+        const y = Math.random() * 512;
+        const size = 5 + Math.random() * 15;
+        
+        ctx.beginPath();
+        ctx.arc(x, y, size, 0, Math.PI * 2);
+        ctx.fillStyle = 'rgba(230, 230, 210, 0.9)'; // Off-white for bone
+        ctx.fill();
+        
+        // Add some cracks to the bone
+        for (let j = 0; j < 3; j++) {
+            const startX = x - size/2 + Math.random() * size;
+            const startY = y - size/2 + Math.random() * size;
+            
+            ctx.beginPath();
+            ctx.moveTo(startX, startY);
+            ctx.lineTo(startX + (Math.random() * 10) - 5, startY + (Math.random() * 10) - 5);
+            ctx.strokeStyle = 'rgba(180, 170, 150, 0.8)';
+            ctx.lineWidth = 0.5 + Math.random();
+            ctx.stroke();
+        }
+    }
+    
+    // Create texture from canvas
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.wrapS = THREE.RepeatWrapping;
+    texture.wrapT = THREE.RepeatWrapping;
+    
+    return texture;
+}
+
+// Create a detailed zombie face texture
+function createZombieFaceTexture() {
+    const canvas = document.createElement('canvas');
+    canvas.width = 512;
+    canvas.height = 512;
+    const ctx = canvas.getContext('2d');
+    
+    // Clear canvas
+    ctx.clearRect(0, 0, 512, 512);
+    
+    // Base zombie skin color - sickly green/gray
+    const baseColor = {
+        r: 100 + Math.floor(Math.random() * 30),
+        g: 130 + Math.floor(Math.random() * 30),
+        b: 80 + Math.floor(Math.random() * 20)
+    };
+    
+    // Fill face with base color
+    ctx.fillStyle = `rgb(${baseColor.r}, ${baseColor.g}, ${baseColor.b})`;
+    ctx.beginPath();
+    ctx.arc(256, 256, 240, 0, Math.PI * 2);
+    ctx.fill();
+    
+    // Add skin texture
+    for (let i = 0; i < 3000; i++) {
+        const x = Math.random() * 512;
+        const y = Math.random() * 512;
+        const size = 1 + Math.random() * 3;
+        const dist = Math.sqrt(Math.pow(x - 256, 2) + Math.pow(y - 256, 2));
+        
+        // Only draw within face circle
+        if (dist < 240) {
+            // Vary between darker and lighter spots
+            let spotColor;
+            if (Math.random() < 0.7) {
+                // Darker spots (decay)
+                spotColor = `rgba(${baseColor.r * 0.6}, ${baseColor.g * 0.6}, ${baseColor.b * 0.5}, ${0.2 + Math.random() * 0.3})`;
+            } else {
+                // Lighter spots (exposed flesh)
+                spotColor = `rgba(${baseColor.r * 1.2}, ${baseColor.g * 0.8}, ${baseColor.b * 0.7}, ${0.1 + Math.random() * 0.2})`;
+            }
+            
+            ctx.beginPath();
+            ctx.arc(x, y, size, 0, Math.PI * 2);
+            ctx.fillStyle = spotColor;
+            ctx.fill();
+        }
+    }
+    
+    // Draw eyes - sunken and hollow
+    const eyePositions = [
+        { x: 180, y: 200 }, // Left eye
+        { x: 332, y: 200 }  // Right eye
+    ];
+    
+    eyePositions.forEach(pos => {
+        // Draw eye socket - dark and sunken
+        ctx.beginPath();
+        ctx.arc(pos.x, pos.y, 50, 0, Math.PI * 2);
+        ctx.fillStyle = 'rgba(20, 20, 20, 0.8)';
+        ctx.fill();
+        
+        // Add depth to socket with gradient
+        const gradient = ctx.createRadialGradient(pos.x, pos.y, 20, pos.x, pos.y, 50);
+        gradient.addColorStop(0, 'rgba(20, 20, 20, 0.9)');
+        gradient.addColorStop(1, 'rgba(40, 30, 30, 0.5)');
+        
+        ctx.beginPath();
+        ctx.arc(pos.x, pos.y, 50, 0, Math.PI * 2);
+        ctx.fillStyle = gradient;
+        ctx.fill();
+        
+        // Draw eyeball - bloodshot
+        ctx.beginPath();
+        ctx.arc(pos.x, pos.y, 30, 0, Math.PI * 2);
+        ctx.fillStyle = 'rgba(230, 230, 220, 0.9)'; // Yellowish white
+        ctx.fill();
+        
+        // Add bloodshot effect
+        for (let i = 0; i < 10; i++) {
+            const angle = Math.random() * Math.PI * 2;
+            const length = 15 + Math.random() * 15;
+            
+            ctx.beginPath();
+            ctx.moveTo(pos.x, pos.y);
+            ctx.lineTo(
+                pos.x + Math.cos(angle) * length,
+                pos.y + Math.sin(angle) * length
+            );
+            ctx.strokeStyle = `rgba(200, ${20 + Math.random() * 30}, ${20 + Math.random() * 30}, ${0.4 + Math.random() * 0.4})`;
+            ctx.lineWidth = 0.5 + Math.random() * 1.5;
+            ctx.stroke();
+        }
+        
+        // Draw pupil - dead and scary
+        ctx.beginPath();
+        ctx.arc(pos.x, pos.y, 15, 0, Math.PI * 2);
+        
+        // Random eye color - sometimes milky white, sometimes red, sometimes black
+        const eyeType = Math.random();
+        if (eyeType < 0.4) {
+            // Dead milky eye
+            ctx.fillStyle = 'rgba(200, 200, 180, 0.9)';
+        } else if (eyeType < 0.7) {
+            // Red demonic eye
+            ctx.fillStyle = 'rgba(180, 20, 20, 0.9)';
+        } else {
+            // Black soulless eye
+            ctx.fillStyle = 'rgba(10, 10, 10, 0.9)';
+        }
+        ctx.fill();
+    });
+    
+    // Draw mouth - torn and bloody
+    ctx.beginPath();
+    ctx.arc(256, 320, 80, 0, Math.PI);
+    ctx.fillStyle = 'rgba(20, 20, 20, 0.9)';
+    ctx.fill();
+    
+    // Add teeth - jagged and bloody
+    const teethCount = 6 + Math.floor(Math.random() * 4);
+    const teethWidth = 160 / teethCount;
+    
+    for (let i = 0; i < teethCount; i++) {
+        const x = 176 + i * teethWidth;
+        const height = 15 + Math.random() * 20;
+        
+        // Tooth base shape
+        ctx.beginPath();
+        ctx.moveTo(x, 320);
+        ctx.lineTo(x + teethWidth * 0.8, 320);
+        ctx.lineTo(x + teethWidth * 0.7, 320 + height);
+        ctx.lineTo(x + teethWidth * 0.1, 320 + height);
+        ctx.closePath();
+        
+        // Yellowish tooth color
+        ctx.fillStyle = `rgba(${220 + Math.random() * 35}, ${200 + Math.random() * 30}, ${150 + Math.random() * 30}, 0.9)`;
+        ctx.fill();
+        
+        // Add blood to some teeth
+        if (Math.random() < 0.7) {
+            ctx.beginPath();
+            ctx.moveTo(x, 320);
+            ctx.lineTo(x + teethWidth * 0.8, 320);
+            ctx.lineTo(x + teethWidth * 0.7, 320 + height * 0.3);
+            ctx.lineTo(x + teethWidth * 0.1, 320 + height * 0.3);
+            ctx.closePath();
+            ctx.fillStyle = 'rgba(180, 20, 20, 0.7)';
+            ctx.fill();
+        }
+    }
+    
+    // Add blood dripping from mouth
+    for (let i = 0; i < 3; i++) {
+        const x = 200 + Math.random() * 112;
+        const startY = 320;
+        const length = 30 + Math.random() * 70;
+        const width = 5 + Math.random() * 10;
+        
+        // Create drip shape
+        ctx.beginPath();
+        ctx.moveTo(x - width/2, startY);
+        ctx.lineTo(x + width/2, startY);
+        ctx.lineTo(x + width/3, startY + length);
+        ctx.lineTo(x - width/3, startY + length);
+        ctx.closePath();
+        
+        // Blood red color
+        ctx.fillStyle = 'rgba(180, 20, 20, 0.8)';
+        ctx.fill();
+    }
+    
+    // Add some wounds and scars on face
+    for (let i = 0; i < 5; i++) {
+        const x = 100 + Math.random() * 312;
+        const y = 100 + Math.random() * 312;
+        const dist = Math.sqrt(Math.pow(x - 256, 2) + Math.pow(y - 256, 2));
+        
+        // Only draw within face circle
+        if (dist < 220) {
+            const length = 10 + Math.random() * 40;
+            const width = 2 + Math.random() * 8;
+            const angle = Math.random() * Math.PI;
+            
+            ctx.save();
+            ctx.translate(x, y);
+            ctx.rotate(angle);
+            
+            // Draw wound
+            ctx.beginPath();
+            ctx.ellipse(0, 0, length/2, width/2, 0, 0, Math.PI * 2);
+            ctx.fillStyle = 'rgba(140, 30, 30, 0.8)';
+            ctx.fill();
+            
+            // Add darker center
+            ctx.beginPath();
+            ctx.ellipse(0, 0, length/3, width/3, 0, 0, Math.PI * 2);
+            ctx.fillStyle = 'rgba(80, 10, 10, 0.9)';
+            ctx.fill();
+            
+            ctx.restore();
+        }
+    }
+    
+    // Create texture from canvas
+    const texture = new THREE.CanvasTexture(canvas);
+    
+    return texture;
+}
+
+// Function to add blood splatter effects to the zombie
+function addBloodSplatter(zombieMesh) {
+    // Create 2-5 blood splatters on random parts of the zombie
+    const splatterCount = 2 + Math.floor(Math.random() * 4);
+    
+    for (let i = 0; i < splatterCount; i++) {
+        const splatterGeo = new THREE.PlaneGeometry(0.3 + Math.random() * 0.3, 0.3 + Math.random() * 0.3);
+        
+        // Create blood texture
+        const canvas = document.createElement('canvas');
+        canvas.width = 128;
+        canvas.height = 128;
+        const ctx = canvas.getContext('2d');
+        
+        // Draw blood splatter
+        ctx.fillStyle = 'rgba(0, 0, 0, 0)';
+        ctx.fillRect(0, 0, 128, 128);
+        
+        // Blood color
+        ctx.fillStyle = `rgba(${150 + Math.random() * 50}, ${10 + Math.random() * 20}, ${10 + Math.random() * 20}, 0.9)`;
+        
+        // Create splatter shape
+        ctx.beginPath();
+        ctx.arc(64, 64, 30 + Math.random() * 20, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // Add drips
+        const dripCount = 3 + Math.floor(Math.random() * 5);
+        for (let j = 0; j < dripCount; j++) {
+            const angle = Math.random() * Math.PI * 2;
+            const length = 20 + Math.random() * 30;
+            const width = 5 + Math.random() * 10;
+            
+            const x = 64 + Math.cos(angle) * 30;
+            const y = 64 + Math.sin(angle) * 30;
+            
+            ctx.beginPath();
+            ctx.moveTo(x, y);
+            ctx.lineTo(x + Math.cos(angle) * length, y + Math.sin(angle) * length);
+            ctx.lineWidth = width;
+            ctx.strokeStyle = `rgba(${150 + Math.random() * 50}, ${10 + Math.random() * 20}, ${10 + Math.random() * 20}, 0.8)`;
+            ctx.stroke();
+        }
+        
+        // Create texture
+        const splatterTexture = new THREE.CanvasTexture(canvas);
+        
+        // Create material
+        const splatterMat = new THREE.MeshBasicMaterial({
+            map: splatterTexture,
+            transparent: true,
+            side: THREE.DoubleSide
+        });
+        
+        // Create mesh
+        const splatter = new THREE.Mesh(splatterGeo, splatterMat);
+        
+        // Position randomly on zombie body
+        const part = Math.random();
+        if (part < 0.5) {
+            // On body
+            splatter.position.z = 0.51;
+            splatter.position.x = Math.random() * 0.8 - 0.4;
+            splatter.position.y = Math.random() * 1.6 - 0.8;
+            zombieMesh.add(splatter);
+        } else if (part < 0.7) {
+            // On arm
+            const arm = Math.random() < 0.5 ? zombieMesh.children[1] : zombieMesh.children[2];
+            splatter.position.z = 0.13;
+            splatter.position.x = Math.random() * 0.2 - 0.1;
+            splatter.position.y = Math.random() * 0.6 - 0.3;
+            arm.add(splatter);
+        } else {
+            // On leg
+            const leg = Math.random() < 0.5 ? zombieMesh.children[3] : zombieMesh.children[4];
+            splatter.position.z = 0.13;
+            splatter.position.x = Math.random() * 0.2 - 0.1;
+            splatter.position.y = Math.random() * 0.6 - 0.3;
+            leg.add(splatter);
+        }
+        
+        // Random rotation
+        splatter.rotation.z = Math.random() * Math.PI * 2;
     }
 }
 
