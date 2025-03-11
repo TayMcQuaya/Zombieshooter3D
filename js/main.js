@@ -242,12 +242,16 @@ function createGround() {
     // Create a large ground plane with more segments for better lighting
     const groundGeometry = new THREE.PlaneGeometry(200, 200, 50, 50);
     
-    // Create a more realistic ground material
+    // Create grass texture
+    const grassTexture = createGrassTexture();
+    
+    // Create a more realistic ground material with texture
     const groundMaterial = new THREE.MeshPhongMaterial({ 
-        color: 0x556B2F, // Dark olive green for grass
+        color: 0xffffff, // Use white as base color to show texture properly
         specular: 0x111111, // Low specular highlights
         shininess: 5, // Very low shininess
-        side: THREE.DoubleSide
+        side: THREE.DoubleSide,
+        map: grassTexture // Apply grass texture
     });
     
     floor = new THREE.Mesh(groundGeometry, groundMaterial);
@@ -343,14 +347,44 @@ function addEnvironmentalObjects() {
 
 // Create a tree
 function createTree(x, y, z) {
-    const trunkGeo = new THREE.CylinderGeometry(0.2, 0.3, 2);
-    const trunkMat = new THREE.MeshLambertMaterial({ color: 0x8B4513 });
-    const trunk = new THREE.Mesh(trunkGeo, trunkMat);
+    // Create bark texture for trunk
+    const barkTexture = createBarkTexture();
     
+    // Create leaf texture for foliage
+    const leafTexture = createLeafTexture();
+    
+    // Create trunk with bark texture
+    const trunkGeo = new THREE.CylinderGeometry(0.2, 0.3, 2, 8, 1);
+    const trunkMat = new THREE.MeshPhongMaterial({ 
+        color: 0xffffff, 
+        map: barkTexture,
+        shininess: 5
+    });
+    const trunk = new THREE.Mesh(trunkGeo, trunkMat);
+    trunk.castShadow = true;
+    trunk.receiveShadow = true;
+    
+    // Create leaves with leaf texture
     const leavesGeo = new THREE.ConeGeometry(1, 3, 8);
-    const leavesMat = new THREE.MeshLambertMaterial({ color: 0x228B22 });
+    const leavesMat = new THREE.MeshPhongMaterial({ 
+        color: 0xffffff, 
+        map: leafTexture,
+        shininess: 10,
+        specular: 0x004400
+    });
     const leaves = new THREE.Mesh(leavesGeo, leavesMat);
     leaves.position.y = 2.5;
+    leaves.castShadow = true;
+    leaves.receiveShadow = true;
+    
+    // Add some randomness to the tree
+    trunk.rotation.y = Math.random() * Math.PI;
+    leaves.rotation.y = Math.random() * Math.PI;
+    
+    // Slightly tilt the tree for natural look
+    const tiltAngle = Math.random() * 0.2 - 0.1;
+    trunk.rotation.x = tiltAngle;
+    trunk.rotation.z = tiltAngle;
     
     const tree = new THREE.Group();
     tree.add(trunk);
@@ -370,14 +404,34 @@ function createTree(x, y, z) {
 
 // Create a rock
 function createRock(x, y, z) {
+    // Create rock texture
+    const rockTexture = createRockTexture();
+    
     const size = Math.random() * 0.5 + 0.5;
     const rockGeo = new THREE.DodecahedronGeometry(size);
-    const rockMat = new THREE.MeshLambertMaterial({ color: 0x808080 });
+    const rockMat = new THREE.MeshPhongMaterial({ 
+        color: 0xffffff,
+        map: rockTexture,
+        shininess: 30,
+        specular: 0x333333,
+        bumpMap: rockTexture,
+        bumpScale: 0.05
+    });
     const rock = new THREE.Mesh(rockGeo, rockMat);
     
     rock.position.set(x, y + size / 2, z);
     rock.rotation.y = Math.random() * Math.PI * 2;
     rock.rotation.z = Math.random() * 0.5 - 0.25;
+    
+    // Add some random scaling to make rocks look more varied
+    const scaleX = 0.8 + Math.random() * 0.4;
+    const scaleY = 0.8 + Math.random() * 0.4;
+    const scaleZ = 0.8 + Math.random() * 0.4;
+    rock.scale.set(scaleX, scaleY, scaleZ);
+    
+    // Enable shadows
+    rock.castShadow = true;
+    rock.receiveShadow = true;
     
     // Add collision data with proper radius
     rock.userData = {
@@ -635,6 +689,334 @@ function createWoodTexture() {
         ctx.beginPath();
         ctx.arc(x - radius/3, y - radius/3, radius/3, 0, Math.PI * 2);
         ctx.fillStyle = '#A67D5D';
+        ctx.fill();
+    }
+    
+    // Create texture from canvas
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.wrapS = THREE.RepeatWrapping;
+    texture.wrapT = THREE.RepeatWrapping;
+    texture.repeat.set(1, 1);
+    
+    return texture;
+}
+
+// Create a procedural grass texture
+function createGrassTexture() {
+    const canvas = document.createElement('canvas');
+    canvas.width = 256;
+    canvas.height = 256;
+    const ctx = canvas.getContext('2d');
+    
+    // Fill with base grass color
+    ctx.fillStyle = '#3A5F0B';
+    ctx.fillRect(0, 0, 256, 256);
+    
+    // Add darker patches for depth
+    for (let i = 0; i < 30; i++) {
+        const x = Math.random() * 256;
+        const y = Math.random() * 256;
+        const size = 10 + Math.random() * 40;
+        
+        ctx.beginPath();
+        ctx.arc(x, y, size, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(40, 70, 10, ${Math.random() * 0.3})`;
+        ctx.fill();
+    }
+    
+    // Add lighter patches for highlights
+    for (let i = 0; i < 30; i++) {
+        const x = Math.random() * 256;
+        const y = Math.random() * 256;
+        const size = 5 + Math.random() * 20;
+        
+        ctx.beginPath();
+        ctx.arc(x, y, size, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(120, 180, 60, ${Math.random() * 0.3})`;
+        ctx.fill();
+    }
+    
+    // Add individual grass blades
+    for (let i = 0; i < 1000; i++) {
+        const x = Math.random() * 256;
+        const y = Math.random() * 256;
+        const length = 2 + Math.random() * 4;
+        const width = 1 + Math.random();
+        const angle = Math.random() * Math.PI;
+        
+        ctx.save();
+        ctx.translate(x, y);
+        ctx.rotate(angle);
+        
+        // Draw a single grass blade
+        ctx.fillStyle = `rgb(${70 + Math.random() * 60}, ${120 + Math.random() * 60}, ${20 + Math.random() * 40})`;
+        ctx.fillRect(-width/2, -length/2, width, length);
+        
+        ctx.restore();
+    }
+    
+    // Create texture from canvas
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.wrapS = THREE.RepeatWrapping;
+    texture.wrapT = THREE.RepeatWrapping;
+    texture.repeat.set(8, 8); // Repeat the texture to avoid it looking too stretched
+    
+    return texture;
+}
+
+// Create a procedural rock texture
+function createRockTexture() {
+    const canvas = document.createElement('canvas');
+    canvas.width = 256;
+    canvas.height = 256;
+    const ctx = canvas.getContext('2d');
+    
+    // Fill with base rock color
+    ctx.fillStyle = '#707070';
+    ctx.fillRect(0, 0, 256, 256);
+    
+    // Add noise for rock texture
+    const noiseData = createNoiseData(256, 256);
+    
+    // Apply noise to create rock texture
+    const imageData = ctx.getImageData(0, 0, 256, 256);
+    const data = imageData.data;
+    
+    for (let y = 0; y < 256; y++) {
+        for (let x = 0; x < 256; x++) {
+            const index = (y * 256 + x) * 4;
+            const noise = noiseData[y * 256 + x];
+            
+            // Base gray color with noise variation
+            const value = 112 + noise * 40;
+            data[index] = value;     // R
+            data[index + 1] = value; // G
+            data[index + 2] = value; // B
+            data[index + 3] = 255;   // A
+        }
+    }
+    
+    ctx.putImageData(imageData, 0, 0);
+    
+    // Add cracks
+    for (let i = 0; i < 10; i++) {
+        const startX = Math.random() * 256;
+        const startY = Math.random() * 256;
+        let x = startX;
+        let y = startY;
+        
+        ctx.beginPath();
+        ctx.moveTo(x, y);
+        
+        // Create a jagged line for the crack
+        const points = 5 + Math.floor(Math.random() * 10);
+        for (let j = 0; j < points; j++) {
+            x += (Math.random() * 30) - 15;
+            y += (Math.random() * 30) - 15;
+            ctx.lineTo(x, y);
+        }
+        
+        ctx.strokeStyle = `rgba(40, 40, 40, ${0.3 + Math.random() * 0.5})`;
+        ctx.lineWidth = 1 + Math.random();
+        ctx.stroke();
+    }
+    
+    // Add some highlights
+    for (let i = 0; i < 30; i++) {
+        const x = Math.random() * 256;
+        const y = Math.random() * 256;
+        const size = 2 + Math.random() * 5;
+        
+        ctx.beginPath();
+        ctx.arc(x, y, size, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(200, 200, 200, ${Math.random() * 0.2})`;
+        ctx.fill();
+    }
+    
+    // Create texture from canvas
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.wrapS = THREE.RepeatWrapping;
+    texture.wrapT = THREE.RepeatWrapping;
+    texture.repeat.set(1, 1);
+    
+    return texture;
+}
+
+// Helper function to create noise data
+function createNoiseData(width, height) {
+    const data = new Array(width * height);
+    
+    // Initialize with random values
+    for (let i = 0; i < data.length; i++) {
+        data[i] = Math.random();
+    }
+    
+    // Simple blur to create coherent noise
+    const blurredData = new Array(width * height);
+    for (let y = 0; y < height; y++) {
+        for (let x = 0; x < width; x++) {
+            let sum = 0;
+            let count = 0;
+            
+            // Sample 3x3 neighborhood
+            for (let dy = -1; dy <= 1; dy++) {
+                for (let dx = -1; dx <= 1; dx++) {
+                    const nx = x + dx;
+                    const ny = y + dy;
+                    
+                    if (nx >= 0 && nx < width && ny >= 0 && ny < height) {
+                        sum += data[ny * width + nx];
+                        count++;
+                    }
+                }
+            }
+            
+            blurredData[y * width + x] = sum / count;
+        }
+    }
+    
+    return blurredData;
+}
+
+// Create a procedural tree bark texture
+function createBarkTexture() {
+    const canvas = document.createElement('canvas');
+    canvas.width = 256;
+    canvas.height = 256;
+    const ctx = canvas.getContext('2d');
+    
+    // Fill with base bark color
+    ctx.fillStyle = '#5D4037';
+    ctx.fillRect(0, 0, 256, 256);
+    
+    // Add vertical grain lines
+    for (let i = 0; i < 50; i++) {
+        const x = Math.random() * 256;
+        const width = 1 + Math.random() * 3;
+        const height = 256;
+        
+        // Randomize grain color slightly
+        const colorValue = 93 + Math.floor(Math.random() * 20 - 10);
+        ctx.fillStyle = `rgb(${colorValue}, ${Math.floor(colorValue * 0.7)}, ${Math.floor(colorValue * 0.5)})`;
+        ctx.fillRect(x, 0, width, height);
+    }
+    
+    // Add horizontal cracks
+    for (let i = 0; i < 30; i++) {
+        const y = Math.random() * 256;
+        const startX = Math.random() * 50;
+        const width = 150 + Math.random() * 100;
+        const height = 1 + Math.random() * 2;
+        
+        ctx.fillStyle = `rgba(30, 20, 10, ${0.3 + Math.random() * 0.5})`;
+        ctx.fillRect(startX, y, width, height);
+    }
+    
+    // Add knots
+    for (let i = 0; i < 3; i++) {
+        const x = Math.random() * 256;
+        const y = Math.random() * 256;
+        const radius = 5 + Math.random() * 15;
+        
+        // Draw knot base
+        ctx.beginPath();
+        ctx.arc(x, y, radius, 0, Math.PI * 2);
+        ctx.fillStyle = '#3E2723';
+        ctx.fill();
+        
+        // Draw knot rings
+        for (let j = 0; j < 3; j++) {
+            const ringRadius = radius * (0.8 - j * 0.2);
+            ctx.beginPath();
+            ctx.arc(x, y, ringRadius, 0, Math.PI * 2);
+            ctx.strokeStyle = `rgba(80, 50, 30, ${0.5 + Math.random() * 0.5})`;
+            ctx.lineWidth = 1;
+            ctx.stroke();
+        }
+        
+        // Add highlight
+        ctx.beginPath();
+        ctx.arc(x - radius/3, y - radius/3, radius/4, 0, Math.PI * 2);
+        ctx.fillStyle = 'rgba(120, 80, 60, 0.5)';
+        ctx.fill();
+    }
+    
+    // Create texture from canvas
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.wrapS = THREE.RepeatWrapping;
+    texture.wrapT = THREE.RepeatWrapping;
+    texture.repeat.set(1, 2); // Repeat vertically for tree trunks
+    
+    return texture;
+}
+
+// Create a procedural leaf texture for tree foliage
+function createLeafTexture() {
+    const canvas = document.createElement('canvas');
+    canvas.width = 256;
+    canvas.height = 256;
+    const ctx = canvas.getContext('2d');
+    
+    // Fill with base leaf color
+    ctx.fillStyle = '#2E7D32'; // Dark green
+    ctx.fillRect(0, 0, 256, 256);
+    
+    // Add texture and variation
+    const noiseData = createNoiseData(256, 256);
+    
+    // Apply noise to create leaf texture
+    const imageData = ctx.getImageData(0, 0, 256, 256);
+    const data = imageData.data;
+    
+    for (let y = 0; y < 256; y++) {
+        for (let x = 0; x < 256; x++) {
+            const index = (y * 256 + x) * 4;
+            const noise = noiseData[y * 256 + x];
+            
+            // Vary the green color based on noise
+            data[index] = 30 + noise * 40;     // R
+            data[index + 1] = 125 + noise * 60; // G
+            data[index + 2] = 30 + noise * 20;  // B
+            data[index + 3] = 255;              // A
+        }
+    }
+    
+    ctx.putImageData(imageData, 0, 0);
+    
+    // Add leaf veins
+    for (let i = 0; i < 20; i++) {
+        const startX = 128;
+        const startY = 128 + (Math.random() * 100 - 50);
+        let x = startX;
+        let y = startY;
+        
+        ctx.beginPath();
+        ctx.moveTo(x, y);
+        
+        // Create a curved line for the vein
+        const endX = Math.random() < 0.5 ? 0 : 256;
+        const endY = startY + (Math.random() * 60 - 30);
+        
+        // Control points for curve
+        const cpX = (startX + endX) / 2;
+        const cpY = startY + (Math.random() * 40 - 20);
+        
+        ctx.quadraticCurveTo(cpX, cpY, endX, endY);
+        
+        ctx.strokeStyle = `rgba(40, 100, 40, ${0.2 + Math.random() * 0.3})`;
+        ctx.lineWidth = 1 + Math.random();
+        ctx.stroke();
+    }
+    
+    // Add some highlights to simulate light reflection
+    for (let i = 0; i < 50; i++) {
+        const x = Math.random() * 256;
+        const y = Math.random() * 256;
+        const size = 2 + Math.random() * 5;
+        
+        ctx.beginPath();
+        ctx.arc(x, y, size, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(180, 255, 180, ${Math.random() * 0.2})`;
         ctx.fill();
     }
     
