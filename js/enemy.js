@@ -191,7 +191,9 @@ function spawnEnemy() {
         lastAttack: 0,
         spawnTime: Date.now(),
         isSpawning: true,
-        targetY: 1
+        targetY: 1,
+        originalScale: mesh.scale.clone(),
+        originalEmissive: mesh.material.emissive.getHex()
     };
     
     scene.add(mesh);
@@ -219,8 +221,22 @@ function hitEnemy(enemy) {
     enemy.isHit = true;
     enemy.lastHit = now;
     
-    // Visual feedback - flash red
+    // Store original scale and color if not already stored
+    if (!enemy.originalScale) {
+        enemy.originalScale = enemy.mesh.scale.clone();
+        enemy.originalEmissive = enemy.mesh.material.emissive.getHex();
+    }
+    
+    // Visual feedback - flash bright red
     enemy.mesh.material.emissive.setHex(0xff0000);
+    enemy.mesh.material.emissiveIntensity = 1.0; // Increase intensity for brighter effect
+    
+    // Add a slight scale effect (make zombie slightly larger when hit)
+    enemy.mesh.scale.set(
+        enemy.originalScale.x * 1.2,
+        enemy.originalScale.y * 1.2,
+        enemy.originalScale.z * 1.2
+    );
     
     // Play hit sound
     if (typeof playSound === 'function') {
@@ -316,7 +332,19 @@ function updateEnemies() {
         // Reset hit effect
         if (enemy.isHit && now - enemy.lastHit > 200) {
             enemy.isHit = false;
-            enemy.mesh.material.emissive.setHex(0x202020);
+            
+            // Reset emissive color and intensity
+            if (enemy.originalEmissive !== undefined) {
+                enemy.mesh.material.emissive.setHex(enemy.originalEmissive);
+            } else {
+                enemy.mesh.material.emissive.setHex(0x202020); // Default fallback
+            }
+            enemy.mesh.material.emissiveIntensity = 0.5; // Reset to default intensity
+            
+            // Reset scale
+            if (enemy.originalScale) {
+                enemy.mesh.scale.copy(enemy.originalScale);
+            }
         }
     }
     
