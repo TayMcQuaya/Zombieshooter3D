@@ -211,6 +211,9 @@ function playSound(soundType) {
         case 'jump':
             playJumpSound();
             break;
+        case 'zombieAttack':
+            playZombieAttackSound();
+            break;
         default:
             console.warn('Unknown sound type:', soundType);
     }
@@ -346,5 +349,28 @@ function playJumpSound() {
     // Remove the element after playing
     jumpSound.onended = () => {
         jumpSound.remove();
+    };
+}
+
+// Play zombie attack sound
+function playZombieAttackSound() {
+    if (!soundEnabled) return;
+    
+    // Create audio element for zombie attack sound
+    const zombieAttackSound = document.createElement('audio');
+    zombieAttackSound.volume = 0.5;
+    
+    // Use a placeholder URL for the sound
+    // In a real game, you would use an actual sound file
+    zombieAttackSound.src = 'assets/sounds/zombie_attack.mp3';
+    
+    // Play the sound
+    zombieAttackSound.play().catch(e => {
+        console.warn('Could not play zombie attack sound:', e);
+    });
+    
+    // Remove the element after playing
+    zombieAttackSound.onended = () => {
+        zombieAttackSound.remove();
     };
 } 

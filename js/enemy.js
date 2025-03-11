@@ -133,19 +133,25 @@ function spawnEnemy() {
     // Arms
     const armGeo = new THREE.BoxGeometry(0.25, 0.8, 0.25);
     
-    // Left arm
+    // Left arm - positioned extended forward
     const leftArm = new THREE.Mesh(armGeo, mat);
     leftArm.position.x = -0.6;
     leftArm.position.y = 0;
-    leftArm.rotation.z = Math.random() * 0.4 - 0.2;
+    // Rotate arm to extend forward
+    leftArm.rotation.z = Math.random() * 0.2 - 0.1; // Slight random Z rotation
+    leftArm.rotation.x = -Math.PI / 2; // Rotate forward by 90 degrees (straight forward)
+    leftArm.position.z = 0.4; // Move forward
     leftArm.castShadow = true;
     mesh.add(leftArm);
     
-    // Right arm
+    // Right arm - positioned extended forward
     const rightArm = new THREE.Mesh(armGeo, mat);
     rightArm.position.x = 0.6;
     rightArm.position.y = 0;
-    rightArm.rotation.z = Math.random() * 0.4 - 0.2;
+    // Rotate arm to extend forward
+    rightArm.rotation.z = Math.random() * 0.2 - 0.1; // Slight random Z rotation
+    rightArm.rotation.x = -Math.PI / 2; // Rotate forward by 90 degrees (straight forward)
+    rightArm.position.z = 0.4; // Move forward
     rightArm.castShadow = true;
     mesh.add(rightArm);
     
@@ -154,15 +160,13 @@ function spawnEnemy() {
     
     // Left leg
     const leftLeg = new THREE.Mesh(legGeo, mat);
-    leftLeg.position.x = -0.2;
-    leftLeg.position.y = -1;
+    leftLeg.position.set(-0.2, -1, 0);
     leftLeg.castShadow = true;
     mesh.add(leftLeg);
     
     // Right leg
     const rightLeg = new THREE.Mesh(legGeo, mat);
-    rightLeg.position.x = 0.2;
-    rightLeg.position.y = -1;
+    rightLeg.position.set(0.2, -1, 0);
     rightLeg.castShadow = true;
     mesh.add(rightLeg);
     
@@ -193,7 +197,13 @@ function spawnEnemy() {
             color: mat.color.getHex(),
             emissive: mat.emissive.getHex(),
             emissiveIntensity: mat.emissiveIntensity || 0.2
-        }
+        },
+        // Store references to limbs for animation
+        leftArm: leftArm,
+        rightArm: rightArm,
+        // Store original arm rotations for animation
+        leftArmDefaultRotation: leftArm.rotation.clone(),
+        rightArmDefaultRotation: rightArm.rotation.clone()
     };
     
     // Add blood splatter effects on random parts of the zombie
@@ -354,6 +364,11 @@ function updateEnemies() {
     for (let i = enemies.length - 1; i >= 0; i--) {
         const enemy = enemies[i];
         
+        // Update attack animation if in progress
+        if (enemy.isAttacking) {
+            updateZombieAttackAnimation(enemy);
+        }
+        
         if (enemy.isSpawning) {
             const spawnProgress = (now - enemy.spawnTime) / SPAWN_ANIMATION_DURATION;
             if (spawnProgress < 1) {
@@ -451,6 +466,11 @@ function updateEnemies() {
                 if (now - enemy.lastAttack >= ATTACK_COOLDOWN) {
                     damagePlayer();
                     enemy.lastAttack = now;
+                    
+                    // Trigger attack animation if not already attacking
+                    if (!enemy.isAttacking) {
+                        animateZombieAttack(enemy);
+                    }
                 }
             }
         }
@@ -529,16 +549,22 @@ function createZombie() {
     const armGeometry = new THREE.BoxGeometry(0.4, 1.2, 0.4);
     const armMaterial = new THREE.MeshLambertMaterial({ color: color });
     
-    // Left arm
+    // Left arm - positioned extended forward
     const leftArm = new THREE.Mesh(armGeometry, armMaterial);
     leftArm.position.set(-0.7, 1.5, 0);
+    // Rotate arm to extend forward
+    leftArm.rotation.x = -Math.PI / 4; // Rotate forward by 45 degrees
+    leftArm.position.z = 0.5; // Move forward
     leftArm.castShadow = true;
     leftArm.receiveShadow = true;
     zombie.add(leftArm);
     
-    // Right arm
+    // Right arm - positioned extended forward
     const rightArm = new THREE.Mesh(armGeometry, armMaterial);
     rightArm.position.set(0.7, 1.5, 0);
+    // Rotate arm to extend forward
+    rightArm.rotation.x = -Math.PI / 4; // Rotate forward by 45 degrees
+    rightArm.position.z = 0.5; // Move forward
     rightArm.castShadow = true;
     rightArm.receiveShadow = true;
     zombie.add(rightArm);
@@ -567,7 +593,65 @@ function createZombie() {
     zombie.userData.leftLeg = leftLeg;
     zombie.userData.rightLeg = rightLeg;
     
+    // Store original arm positions for attack animation
+    zombie.userData.leftArmDefaultRotation = leftArm.rotation.clone();
+    zombie.userData.rightArmDefaultRotation = rightArm.rotation.clone();
+    
     return zombie;
+}
+
+// Animate zombie attack
+function animateZombieAttack(enemy) {
+    // Get the arms
+    const leftArm = enemy.leftArm;
+    const rightArm = enemy.rightArm;
+    
+    if (!leftArm || !rightArm) return;
+    
+    // Store the current time as the attack start time
+    enemy.attackAnimationStart = Date.now();
+    enemy.isAttacking = true;
+    
+    // Play attack sound
+    if (typeof playSound === 'function') {
+        playSound('zombieAttack');
+    }
+}
+
+// Update zombie attack animation
+function updateZombieAttackAnimation(enemy) {
+    if (!enemy.isAttacking || !enemy.attackAnimationStart) return;
+    
+    const now = Date.now();
+    const attackDuration = 500; // 0.5 seconds for attack animation
+    const progress = (now - enemy.attackAnimationStart) / attackDuration;
+    
+    // Get the arms
+    const leftArm = enemy.leftArm;
+    const rightArm = enemy.rightArm;
+    
+    if (!leftArm || !rightArm) return;
+    
+    if (progress < 0.5) {
+        // First half of animation - arms go back
+        const animationProgress = progress * 2; // Scale to 0-1 range
+        
+        // Rotate arms back (preparing for attack)
+        leftArm.rotation.x = enemy.leftArmDefaultRotation.x + (Math.PI / 6) * animationProgress;
+        rightArm.rotation.x = enemy.rightArmDefaultRotation.x + (Math.PI / 6) * animationProgress;
+    } else if (progress < 1) {
+        // Second half of animation - arms thrust forward quickly
+        const animationProgress = (progress - 0.5) * 2; // Scale to 0-1 range
+        
+        // Thrust arms forward (attack motion)
+        leftArm.rotation.x = enemy.leftArmDefaultRotation.x + (Math.PI / 6) - (Math.PI / 3) * animationProgress;
+        rightArm.rotation.x = enemy.rightArmDefaultRotation.x + (Math.PI / 6) - (Math.PI / 3) * animationProgress;
+    } else {
+        // Animation complete, reset to default position
+        leftArm.rotation.x = enemy.leftArmDefaultRotation.x;
+        rightArm.rotation.x = enemy.rightArmDefaultRotation.x;
+        enemy.isAttacking = false;
+    }
 }
 
 // Destroy an enemy (when hit by projectile)
@@ -647,20 +731,24 @@ function createDismembermentEffect(enemy) {
     const limbGeo = new THREE.BoxGeometry(0.25, 0.8, 0.25);
     const limbMat = enemy.mesh.material.clone();
     
-    // Left arm
+    // Left arm - positioned extended forward like the original
     const leftArm = new THREE.Mesh(limbGeo, limbMat);
     leftArm.position.copy(position);
     leftArm.position.x -= 0.6;
     leftArm.position.y += 0.25;
+    leftArm.position.z += 0.4; // Move forward
     leftArm.rotation.copy(rotation);
+    leftArm.rotation.x += -Math.PI / 2; // Rotate forward by 90 degrees
     scene.add(leftArm);
     
-    // Right arm
+    // Right arm - positioned extended forward like the original
     const rightArm = new THREE.Mesh(limbGeo, limbMat);
     rightArm.position.copy(position);
     rightArm.position.x += 0.6;
     rightArm.position.y += 0.25;
+    rightArm.position.z += 0.4; // Move forward
     rightArm.rotation.copy(rotation);
+    rightArm.rotation.x += -Math.PI / 2; // Rotate forward by 90 degrees
     scene.add(rightArm);
     
     // Left leg
