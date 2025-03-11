@@ -241,9 +241,10 @@ function hitEnemy(enemy) {
     enemy.mesh.material.emissive.setHex(0xff0000);  // Set emissive to red
     enemy.mesh.material.emissiveIntensity = 0.8;    // Strong emissive effect
     
-    // Apply the same effect to all limbs
+    // Apply the same effect to all limbs, but not to blood splatters
     enemy.mesh.children.forEach(child => {
-        if (child.material && child.material.emissive) {
+        // Only apply to limbs with emissive properties, not to blood splatters
+        if (child.material && child.material.emissive && (!child.userData || !child.userData.isBloodSplatter)) {
             child.material.emissive.setHex(0xff0000);
             child.material.emissiveIntensity = 0.8;
         }
@@ -260,7 +261,7 @@ function hitEnemy(enemy) {
     const hitPosition = new THREE.Vector3(
         Math.random() * 0.8 - 0.4,
         Math.random() * 1.6 - 0.8,
-        0.51
+        0.53 // Slightly in front of existing splatters
     );
     
     // Create blood splatter
@@ -305,17 +306,27 @@ function hitEnemy(enemy) {
     // Create texture
     const splatterTexture = new THREE.CanvasTexture(canvas);
     
-    // Create material
+    // Create material with improved rendering properties
     const splatterMat = new THREE.MeshBasicMaterial({
         map: splatterTexture,
         transparent: true,
-        side: THREE.DoubleSide
+        side: THREE.DoubleSide,
+        depthWrite: false, // Prevent z-fighting
+        depthTest: true,   // Still test against depth buffer
+        alphaTest: 0.1     // Discard very transparent pixels
     });
     
     // Create mesh
     const splatter = new THREE.Mesh(splatterGeo, splatterMat);
     splatter.position.copy(hitPosition);
     splatter.rotation.z = Math.random() * Math.PI * 2;
+    
+    // Mark this as a blood splatter for special handling
+    splatter.userData = { isBloodSplatter: true };
+    
+    // Set render order to ensure blood splatters render after the zombie parts
+    splatter.renderOrder = 1;
+    
     enemy.mesh.add(splatter);
     
     // Play hit sound
@@ -361,19 +372,55 @@ function updateEnemies() {
         }
         
         if (!enemy.isSpawning) {
+            // Calculate direction to player
             const directionToPlayer = new THREE.Vector3()
                 .subVectors(camera.position, enemy.mesh.position)
                 .normalize();
             
+            // Keep direction on the ground plane
             directionToPlayer.y = 0;
+            
+            // Store the current position before moving
+            const previousPosition = enemy.mesh.position.clone();
+            
+            // Move towards player
             enemy.mesh.position.add(directionToPlayer.multiplyScalar(enemySpeed));
             enemy.mesh.position.y = enemy.targetY;
             
+            // Look at player
             enemy.mesh.lookAt(new THREE.Vector3(
                 camera.position.x,
                 enemy.mesh.position.y,
                 camera.position.z
             ));
+            
+            // Player collision detection
+            const playerRadius = 0.5; // Player collision radius
+            const zombieRadius = 0.5; // Zombie collision radius
+            const minDistance = playerRadius + zombieRadius;
+            
+            // Calculate distance to player (only in XZ plane)
+            const playerPos2D = new THREE.Vector2(camera.position.x, camera.position.z);
+            const zombiePos2D = new THREE.Vector2(enemy.mesh.position.x, enemy.mesh.position.z);
+            const distanceToPlayer = playerPos2D.distanceTo(zombiePos2D);
+            
+            // If too close to player, move back to previous position
+            if (distanceToPlayer < minDistance) {
+                // Prevent going through player by restoring previous position
+                enemy.mesh.position.copy(previousPosition);
+                
+                // Try to move around the player instead
+                const sideStep = new THREE.Vector3(-directionToPlayer.z, 0, directionToPlayer.x);
+                sideStep.normalize();
+                
+                // Randomly choose left or right to avoid getting stuck
+                if (Math.random() > 0.5) {
+                    sideStep.multiplyScalar(-1);
+                }
+                
+                // Apply a small side movement
+                enemy.mesh.position.add(sideStep.multiplyScalar(enemySpeed * 0.5));
+            }
             
             // Simple environment collision check (less frequent)
             if (typeof window.environmentObjects !== 'undefined' && Math.random() < 0.1) {
@@ -404,7 +451,6 @@ function updateEnemies() {
                 if (now - enemy.lastAttack >= ATTACK_COOLDOWN) {
                     damagePlayer();
                     enemy.lastAttack = now;
-                    // Don't push enemy back when attacking
                 }
             }
         }
@@ -419,9 +465,9 @@ function updateEnemies() {
                 enemy.mesh.material.emissive.setHex(enemy.originalMaterialProps.emissive);
                 enemy.mesh.material.emissiveIntensity = enemy.originalMaterialProps.emissiveIntensity;
                 
-                // Reset emissive properties on all limbs
+                // Reset emissive properties on all limbs, but not on blood splatters
                 enemy.mesh.children.forEach(child => {
-                    if (child.material && child.material.emissive) {
+                    if (child.material && child.material.emissive && (!child.userData || !child.userData.isBloodSplatter)) {
                         child.material.emissive.setHex(enemy.originalMaterialProps.emissive);
                         child.material.emissiveIntensity = enemy.originalMaterialProps.emissiveIntensity;
                     }
@@ -431,9 +477,9 @@ function updateEnemies() {
                 enemy.mesh.material.emissive.setHex(0x003300);
                 enemy.mesh.material.emissiveIntensity = 0.2;
                 
-                // Reset all limbs
+                // Reset all limbs, but not blood splatters
                 enemy.mesh.children.forEach(child => {
-                    if (child.material && child.material.emissive) {
+                    if (child.material && child.material.emissive && (!child.userData || !child.userData.isBloodSplatter)) {
                         child.material.emissive.setHex(0x003300);
                         child.material.emissiveIntensity = 0.2;
                     }
@@ -657,11 +703,21 @@ function createDismembermentEffect(enemy) {
             map: bloodTexture,
             transparent: true,
             opacity: 0.8,
-            side: THREE.DoubleSide
+            side: THREE.DoubleSide,
+            depthWrite: false, // Prevent z-fighting
+            depthTest: true,   // Still test against depth buffer
+            alphaTest: 0.1     // Discard very transparent pixels
         });
         
         const blood = new THREE.Mesh(bloodGeo, bloodMat);
         blood.position.z = 0.3;
+        
+        // Mark this as a blood splatter for special handling
+        blood.userData = { isBloodSplatter: true };
+        
+        // Set render order to ensure blood splatters render after the zombie parts
+        blood.renderOrder = 1;
+        
         part.add(blood);
     });
     
@@ -1061,12 +1117,15 @@ function createGroundBloodSplatter(position) {
     // Create texture
     const splatterTexture = new THREE.CanvasTexture(canvas);
     
-    // Create material
+    // Create material with improved rendering properties
     const splatterMat = new THREE.MeshBasicMaterial({
         map: splatterTexture,
         transparent: true,
         opacity: 0.8,
-        side: THREE.DoubleSide
+        side: THREE.DoubleSide,
+        depthWrite: false, // Prevent z-fighting
+        depthTest: true,   // Still test against depth buffer
+        alphaTest: 0.1     // Discard very transparent pixels
     });
     
     // Create mesh
@@ -1076,6 +1135,9 @@ function createGroundBloodSplatter(position) {
     splatter.position.copy(position);
     splatter.position.y = 0.01;
     splatter.rotation.x = -Math.PI / 2; // Lay flat on ground
+    
+    // Set render order to ensure blood splatters render properly
+    splatter.renderOrder = 1;
     
     scene.add(splatter);
     
@@ -1534,35 +1596,41 @@ function addBloodSplatter(zombieMesh) {
         // Create texture
         const splatterTexture = new THREE.CanvasTexture(canvas);
         
-        // Create material
+        // Create material with improved rendering properties
         const splatterMat = new THREE.MeshBasicMaterial({
             map: splatterTexture,
             transparent: true,
-            side: THREE.DoubleSide
+            side: THREE.DoubleSide,
+            depthWrite: false, // Prevent z-fighting
+            depthTest: true,   // Still test against depth buffer
+            alphaTest: 0.1     // Discard very transparent pixels
         });
         
         // Create mesh
         const splatter = new THREE.Mesh(splatterGeo, splatterMat);
         
+        // Mark this as a blood splatter for special handling
+        splatter.userData = { isBloodSplatter: true };
+        
         // Position randomly on zombie body
         const part = Math.random();
         if (part < 0.5) {
             // On body
-            splatter.position.z = 0.51;
+            splatter.position.z = 0.52; // Slightly in front of the face (which is at 0.51)
             splatter.position.x = Math.random() * 0.8 - 0.4;
             splatter.position.y = Math.random() * 1.6 - 0.8;
             zombieMesh.add(splatter);
         } else if (part < 0.7) {
             // On arm
             const arm = Math.random() < 0.5 ? zombieMesh.children[1] : zombieMesh.children[2];
-            splatter.position.z = 0.13;
+            splatter.position.z = 0.15; // Slightly in front of arm
             splatter.position.x = Math.random() * 0.2 - 0.1;
             splatter.position.y = Math.random() * 0.6 - 0.3;
             arm.add(splatter);
         } else {
             // On leg
             const leg = Math.random() < 0.5 ? zombieMesh.children[3] : zombieMesh.children[4];
-            splatter.position.z = 0.13;
+            splatter.position.z = 0.15; // Slightly in front of leg
             splatter.position.x = Math.random() * 0.2 - 0.1;
             splatter.position.y = Math.random() * 0.6 - 0.3;
             leg.add(splatter);
@@ -1570,6 +1638,9 @@ function addBloodSplatter(zombieMesh) {
         
         // Random rotation
         splatter.rotation.z = Math.random() * Math.PI * 2;
+        
+        // Set render order to ensure blood splatters render after the zombie parts
+        splatter.renderOrder = 1;
     }
 }
 

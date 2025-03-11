@@ -501,6 +501,31 @@ function checkCollision(position) {
         }
     }
     
+    // Check collision with zombies
+    if (window.enemies && window.enemies.length > 0) {
+        const playerPos2D = new THREE.Vector2(position.x, position.z);
+        
+        for (const enemy of window.enemies) {
+            if (!enemy.mesh || !enemy.mesh.position) continue;
+            
+            // Skip zombies that are spawning (underground)
+            if (enemy.isSpawning) continue;
+            
+            // Calculate distance to zombie (only in XZ plane)
+            const zombiePos2D = new THREE.Vector2(enemy.mesh.position.x, enemy.mesh.position.z);
+            const distanceToZombie = playerPos2D.distanceTo(zombiePos2D);
+            
+            // Define collision radii
+            const playerRadius = PLAYER_RADIUS;
+            const zombieRadius = 0.5; // Same as in updateEnemies
+            const minDistance = playerRadius + zombieRadius;
+            
+            if (distanceToZombie < minDistance) {
+                return true; // Collision with zombie
+            }
+        }
+    }
+    
     return false; // No collision
 }
 
