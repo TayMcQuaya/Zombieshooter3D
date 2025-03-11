@@ -19,6 +19,7 @@ const PROJECTILE_LIFETIME = 1500;
 const PROJECTILE_SPEED = 0.8;  // Reduced from 2.0 for slower bullets
 const JUMP_COOLDOWN = 500;
 const SHOOT_COOLDOWN = 400;    // 400ms between shots
+const COLLISION_BUFFER = 0.1;  // Small buffer to prevent getting too close to objects
 
 let velocity = new THREE.Vector3();
 let isJumping = false;
@@ -26,6 +27,9 @@ let canJump = true;
 let lastJumpTime = 0;
 let lastShootTime = 0;
 let projectiles = [];
+let lastStuckCheck = 0;
+let lastPosition = new THREE.Vector3();
+let stuckCounter = 0;
 
 // Camera smoothing properties
 const mouseSensitivity = 0.001; // Reduced sensitivity for smoother control
@@ -47,6 +51,9 @@ function initPlayer() {
     
     // Set up mouse click for shooting
     document.addEventListener('mousedown', onMouseDown);
+    
+    // Initialize last position
+    lastPosition.copy(camera.position);
 }
 
 // Handle key down events
@@ -99,31 +106,48 @@ function onKeyUp(event) {
 function onMouseMove(event) {
     if (!gameActive || !document.pointerLockElement) return;
     
-    const movementX = event.movementX || 0;
-    const movementY = event.movementY || 0;
+    // Get mouse movement
+    let movementX = event.movementX || 0;
+    let movementY = event.movementY || 0;
+    
+    // Filter out extreme mouse movements (which can happen due to browser bugs)
+    // These are often the cause of sudden camera jumps
+    const MAX_MOVEMENT = 100; // Maximum reasonable mouse movement in one frame
+    if (Math.abs(movementX) > MAX_MOVEMENT || Math.abs(movementY) > MAX_MOVEMENT) {
+        console.log("Filtered out extreme mouse movement:", movementX, movementY);
+        return; // Skip this update
+    }
     
     // Reduced sensitivity for smoother control
     const mouseSensitivity = 0.001;
     
-    // Create a quaternion for horizontal rotation (around Y axis)
-    const horizontalRotation = new THREE.Quaternion();
-    horizontalRotation.setFromAxisAngle(new THREE.Vector3(0, 1, 0), -movementX * mouseSensitivity);
-    camera.quaternion.premultiply(horizontalRotation);
-    
-    // Create a quaternion for vertical rotation (around X axis)
-    const verticalRotation = new THREE.Quaternion();
-    const rightVector = new THREE.Vector3(1, 0, 0).applyQuaternion(camera.quaternion);
-    verticalRotation.setFromAxisAngle(rightVector, -movementY * mouseSensitivity);
-    camera.quaternion.premultiply(verticalRotation);
-    
-    // Clamp vertical rotation
-    const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
-    const angle = Math.acos(forward.y);
-    if (angle < 0.1 || angle > Math.PI - 0.1) {
-        camera.quaternion.copy(previousQuaternion);
-    } else {
-        previousQuaternion.copy(camera.quaternion);
+    // Initialize camera rotation if not already done
+    if (!window.cameraRotation) {
+        window.cameraRotation = new THREE.Euler(0, 0, 0, 'YXZ');
     }
+    
+    // Initialize smoothing values if not already done
+    if (!window.lastX) window.lastX = 0;
+    if (!window.lastY) window.lastY = 0;
+    
+    // Apply smoothing (simple exponential moving average)
+    const smoothingFactor = 0.7; // Higher = more smoothing
+    movementX = movementX * (1 - smoothingFactor) + window.lastX * smoothingFactor;
+    movementY = movementY * (1 - smoothingFactor) + window.lastY * smoothingFactor;
+    
+    // Store current values for next frame
+    window.lastX = movementX;
+    window.lastY = movementY;
+    
+    // Update Euler angles based on mouse movement
+    window.cameraRotation.y -= movementX * mouseSensitivity;
+    window.cameraRotation.x -= movementY * mouseSensitivity;
+    
+    // Clamp vertical rotation to prevent flipping
+    window.cameraRotation.x = Math.max(-Math.PI/2 + 0.01, Math.min(Math.PI/2 - 0.01, window.cameraRotation.x));
+    
+    // Apply rotation to camera
+    camera.quaternion.setFromEuler(window.cameraRotation);
 }
 
 // Handle mouse down for shooting
@@ -157,42 +181,58 @@ function updatePlayer() {
         canJump = true;
     }
     
-    // Get movement input
-    if (moveState.forward) {
-        const forward = new THREE.Vector3(0, 0, -1);
-        forward.applyQuaternion(camera.quaternion);
-        forward.y = 0;
-        forward.normalize();
-        
-        const newPosition = camera.position.clone().add(forward.multiplyScalar(PLAYER_SPEED));
-        moveWithCollision(newPosition);
+    // Calculate movement vector
+    let moveX = 0;
+    let moveZ = 0;
+    
+    if (moveState.forward) moveZ -= 1;
+    if (moveState.backward) moveZ += 1;
+    if (moveState.left) moveX -= 1;
+    if (moveState.right) moveX += 1;
+    
+    // Normalize diagonal movement
+    if (moveX !== 0 && moveZ !== 0) {
+        moveX *= 0.7071; // 1/sqrt(2)
+        moveZ *= 0.7071;
     }
-    if (moveState.backward) {
-        const backward = new THREE.Vector3(0, 0, 1);
-        backward.applyQuaternion(camera.quaternion);
-        backward.y = 0;
-        backward.normalize();
+    
+    // Apply movement speed
+    moveX *= PLAYER_SPEED;
+    moveZ *= PLAYER_SPEED;
+    
+    // Convert movement to world space
+    if (moveX !== 0 || moveZ !== 0) {
+        // Get camera direction
+        const cameraDirection = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
+        cameraDirection.y = 0;
+        cameraDirection.normalize();
         
-        const newPosition = camera.position.clone().add(backward.multiplyScalar(PLAYER_SPEED));
-        moveWithCollision(newPosition);
-    }
-    if (moveState.left) {
-        const left = new THREE.Vector3(-1, 0, 0);
-        left.applyQuaternion(camera.quaternion);
-        left.y = 0;
-        left.normalize();
+        // Get camera right vector
+        const cameraRight = new THREE.Vector3(1, 0, 0).applyQuaternion(camera.quaternion);
+        cameraRight.y = 0;
+        cameraRight.normalize();
         
-        const newPosition = camera.position.clone().add(left.multiplyScalar(PLAYER_SPEED));
-        moveWithCollision(newPosition);
-    }
-    if (moveState.right) {
-        const right = new THREE.Vector3(1, 0, 0);
-        right.applyQuaternion(camera.quaternion);
-        right.y = 0;
-        right.normalize();
+        // Calculate world space movement
+        const worldMoveX = cameraRight.x * moveX + cameraDirection.x * moveZ;
+        const worldMoveZ = cameraRight.z * moveX + cameraDirection.z * moveZ;
         
-        const newPosition = camera.position.clone().add(right.multiplyScalar(PLAYER_SPEED));
-        moveWithCollision(newPosition);
+        // Try to move in X direction
+        const newPositionX = camera.position.clone();
+        newPositionX.x += worldMoveX;
+        
+        // Check collision in X direction
+        if (!checkCollision(newPositionX)) {
+            camera.position.x = newPositionX.x;
+        }
+        
+        // Try to move in Z direction
+        const newPositionZ = camera.position.clone();
+        newPositionZ.z += worldMoveZ;
+        
+        // Check collision in Z direction
+        if (!checkCollision(newPositionZ)) {
+            camera.position.z = newPositionZ.z;
+        }
     }
     
     // Jump
@@ -201,45 +241,72 @@ function updatePlayer() {
         isJumping = true;
         canJump = false;
         lastJumpTime = now;
-        playSound('jump');
+        if (typeof playSound === 'function') {
+            playSound('jump');
+        }
+    }
+    
+    // Check if player is stuck
+    if (now - lastStuckCheck > 1000) { // Check every second
+        lastStuckCheck = now;
+        
+        const distanceMoved = camera.position.distanceTo(lastPosition);
+        
+        // If player hasn't moved much but is trying to move
+        if (distanceMoved < 0.1 && (moveState.forward || moveState.backward || moveState.left || moveState.right)) {
+            stuckCounter++;
+            console.log("Possible stuck detection, counter:", stuckCounter);
+            
+            // If stuck for 3 consecutive checks, try to unstick
+            if (stuckCounter >= 3) {
+                console.log("Player appears to be stuck, attempting to unstick");
+                
+                // Try to move player slightly towards center of arena
+                const toCenter = new THREE.Vector3(-camera.position.x, 0, -camera.position.z).normalize();
+                camera.position.x += toCenter.x * 0.5;
+                camera.position.z += toCenter.z * 0.5;
+                
+                // Reset stuck counter
+                stuckCounter = 0;
+            }
+        } else {
+            // Reset stuck counter if player is moving normally
+            stuckCounter = 0;
+        }
+        
+        // Update last position
+        lastPosition.copy(camera.position);
     }
     
     updateProjectiles();
 }
 
-// Move with collision detection
-function moveWithCollision(newPosition) {
-    // Check for collision with environment if the function exists
-    if (typeof window.checkEnvironmentCollision === 'function') {
-        // Create a more aggressive collision check
-        const collision = window.checkEnvironmentCollision(newPosition, PLAYER_RADIUS * 1.5);
-        
-        if (!collision.collided) {
-            // No collision, move to new position
-            camera.position.copy(newPosition);
-        } else {
-            console.log("Collision detected with object:", collision.object);
+// Check collision with environment
+function checkCollision(position) {
+    // Check arena boundary
+    const distanceFromCenter = Math.sqrt(position.x * position.x + position.z * position.z);
+    if (distanceFromCenter > 24 - PLAYER_RADIUS - COLLISION_BUFFER) {
+        return true; // Collision with arena boundary
+    }
+    
+    // Check environment objects
+    if (window.environmentObjects && window.environmentObjects.length > 0) {
+        for (const obj of window.environmentObjects) {
+            if (!obj || !obj.position) continue;
             
-            // Calculate slide movement along the collision surface
-            if (collision.object && collision.object.position) {
-                const pushDirection = new THREE.Vector3()
-                    .subVectors(camera.position, collision.object.position)
-                    .normalize();
+            if (obj.userData && obj.userData.isCollidable) {
+                const objRadius = obj.userData.radius || 1.0;
+                const distance = position.distanceTo(obj.position);
+                const minDistance = PLAYER_RADIUS + objRadius + COLLISION_BUFFER;
                 
-                // Keep movement on horizontal plane
-                pushDirection.y = 0;
-                
-                // Apply stronger push to prevent clipping
-                const slidePosition = camera.position.clone()
-                    .add(pushDirection.multiplyScalar(collision.penetration * 1.5));
-                
-                camera.position.copy(slidePosition);
+                if (distance < minDistance) {
+                    return true;
+                }
             }
         }
-    } else {
-        // If collision check isn't available, just move
-        camera.position.copy(newPosition);
     }
+    
+    return false; // No collision
 }
 
 // Create and shoot projectile

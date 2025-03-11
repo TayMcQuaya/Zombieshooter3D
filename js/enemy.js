@@ -107,9 +107,8 @@ function spawnEnemy() {
     faceCanvas.height = 128;
     const ctx = faceCanvas.getContext('2d');
     
-    // Draw zombie smiley face
-    ctx.fillStyle = 'black';
-    ctx.fillRect(0, 0, 128, 128);
+    // Clear canvas with transparent background
+    ctx.clearRect(0, 0, 128, 128);
     
     // Draw face outline
     ctx.fillStyle = '#50FF50';
