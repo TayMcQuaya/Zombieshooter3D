@@ -50,6 +50,9 @@ function init() {
     initUI();
     initAudio();
     
+    // Initialize pause menu
+    initPauseMenu();
+    
     // Add event listeners
     window.addEventListener('resize', onWindowResize, false);
     window.addEventListener('keydown', handleKeyDown, false); // Add keydown listener for pause
@@ -344,12 +347,14 @@ function togglePause() {
     if (gamePaused) {
         // Pause the game
         document.exitPointerLock();
+        document.body.classList.remove('game-active');
         showPauseMenu();
         if (typeof pauseBackgroundMusic === 'function') {
             pauseBackgroundMusic();
         }
     } else {
         // Resume the game
+        document.body.classList.add('game-active');
         document.body.requestPointerLock();
         hidePauseMenu();
         if (typeof resumeBackgroundMusic === 'function') {
@@ -358,53 +363,32 @@ function togglePause() {
     }
 }
 
-// Show pause menu
 function showPauseMenu() {
-    // Check if pause menu already exists
-    let pauseMenu = document.getElementById('pause-menu');
-    
-    if (!pauseMenu) {
-        // Create pause menu
-        pauseMenu = document.createElement('div');
-        pauseMenu.id = 'pause-menu';
-        pauseMenu.style.position = 'fixed';
-        pauseMenu.style.top = '50%';
-        pauseMenu.style.left = '50%';
-        pauseMenu.style.transform = 'translate(-50%, -50%)';
-        pauseMenu.style.backgroundColor = 'rgba(0, 0, 0, 0.8)';
-        pauseMenu.style.color = 'white';
-        pauseMenu.style.padding = '20px';
-        pauseMenu.style.borderRadius = '10px';
-        pauseMenu.style.textAlign = 'center';
-        pauseMenu.style.zIndex = '1000';
-        
-        // Add pause menu content
-        pauseMenu.innerHTML = `
-            <h2>GAME PAUSED</h2>
-            <button id="resume-button" style="font-size: 20px; padding: 10px 20px; margin: 10px; background-color: #4CAF50; color: white; border: none; border-radius: 5px; cursor: pointer;">RESUME</button>
-            <button id="quit-button" style="font-size: 20px; padding: 10px 20px; margin: 10px; background-color: #f44336; color: white; border: none; border-radius: 5px; cursor: pointer;">QUIT</button>
-            <div style="margin-top: 20px;">
-                <p>Press ESC to resume</p>
-            </div>
-        `;
-        
-        document.body.appendChild(pauseMenu);
-        
-        // Add event listeners to buttons
-        document.getElementById('resume-button').addEventListener('click', togglePause);
-        document.getElementById('quit-button').addEventListener('click', () => {
-            location.reload();
-        });
-    } else {
+    const pauseMenu = document.getElementById('pause-menu');
+    if (pauseMenu) {
         pauseMenu.style.display = 'block';
     }
 }
 
-// Hide pause menu
 function hidePauseMenu() {
     const pauseMenu = document.getElementById('pause-menu');
     if (pauseMenu) {
         pauseMenu.style.display = 'none';
+    }
+}
+
+// Initialize pause menu event listeners
+function initPauseMenu() {
+    const resumeButton = document.getElementById('resume-button');
+    if (resumeButton) {
+        resumeButton.addEventListener('click', togglePause);
+    }
+    
+    const quitButton = document.getElementById('quit-button');
+    if (quitButton) {
+        quitButton.addEventListener('click', () => {
+            location.reload();
+        });
     }
 }
 
@@ -443,6 +427,9 @@ function startGame() {
     // Set game as active
     gameActive = true;
     gamePaused = false; // Ensure game starts unpaused
+    
+    // Add game-active class to body
+    document.body.classList.add('game-active');
     
     // Hide start screen
     const startScreen = document.getElementById('start-screen');
@@ -483,6 +470,7 @@ function startGame() {
 // End the game
 function endGame() {
     gameActive = false;
+    document.body.classList.remove('game-active');
     
     // Stop enemy spawner
     stopEnemySpawner();

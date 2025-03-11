@@ -70,62 +70,127 @@ body {
     flex-direction: column;
     justify-content: center;
     align-items: center;
-    background-color: rgba(0, 0, 0, 0.8);
+    background: linear-gradient(rgba(0, 0, 0, 0.85), rgba(20, 0, 0, 0.95)),
+                url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y="50" x="50" text-anchor="middle" fill="rgba(255,0,0,0.1)" font-size="80">☣</text></svg>');
+    background-size: cover, 100px 100px;
+    background-repeat: no-repeat, repeat;
     z-index: 20;
 }
 
 #start-screen h1 {
-    font-size: 72px;
-    color: #0ff;
-    text-shadow: 0 0 20px #0ff;
-    margin-bottom: 20px;
-    letter-spacing: 5px;
+    font-size: 92px;
+    font-family: 'Creepster', cursive;
+    color: #ff1a1a;
+    text-shadow: 0 0 20px #ff0000, 
+                 0 0 40px #800000,
+                 0 0 60px #400000;
+    margin-bottom: 30px;
+    letter-spacing: 8px;
+    transform: rotate(-3deg);
+    animation: zombieTitle 3s infinite alternate;
+}
+
+@keyframes zombieTitle {
+    0% { 
+        transform: rotate(-3deg) scale(1);
+        text-shadow: 0 0 20px #ff0000, 0 0 40px #800000, 0 0 60px #400000;
+    }
+    100% { 
+        transform: rotate(3deg) scale(1.05);
+        text-shadow: 0 0 30px #ff0000, 0 0 50px #800000, 0 0 70px #400000;
+    }
 }
 
 #start-screen p {
-    font-size: 24px;
-    color: #f0f;
-    text-shadow: 0 0 10px #f0f;
+    font-size: 28px;
+    font-family: 'Creepster', cursive;
+    color: #ff6666;
+    text-shadow: 0 0 15px #800000;
     margin-bottom: 40px;
+    letter-spacing: 3px;
+    transform: rotate(-1deg);
 }
 
 #start-button {
-    padding: 15px 40px;
-    font-size: 24px;
-    background-color: transparent;
-    color: #0ff;
-    border: 2px solid #0ff;
-    border-radius: 5px;
+    padding: 20px 50px;
+    font-size: 32px;
+    background-color: #660000;
+    color: #ffffff;
+    border: 3px solid #990000;
+    border-radius: 8px;
     cursor: pointer;
     transition: all 0.3s ease;
-    box-shadow: 0 0 10px #0ff;
-    margin-bottom: 40px;
+    box-shadow: 0 0 20px #ff0000;
+    margin-bottom: 50px;
+    font-family: 'Creepster', cursive;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    transform: rotate(-1deg);
+    position: relative;
+    overflow: hidden;
 }
 
 #start-button:hover {
-    background-color: #0ff;
-    color: #000;
-    box-shadow: 0 0 20px #0ff;
+    background-color: #990000;
+    border-color: #cc0000;
+    box-shadow: 0 0 30px #ff0000, 0 0 50px #ff0000;
+    transform: scale(1.05) rotate(1deg);
+}
+
+#start-button::before {
+    content: '';
+    position: absolute;
+    top: -50%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
+    background: linear-gradient(
+        45deg,
+        transparent,
+        rgba(255, 0, 0, 0.2),
+        transparent
+    );
+    transform: rotate(45deg);
+    animation: buttonGlow 2s infinite;
+}
+
+@keyframes buttonGlow {
+    0% { transform: rotate(45deg) translateX(-100%); }
+    100% { transform: rotate(45deg) translateX(100%); }
 }
 
 #instructions {
-    color: #fff;
+    color: #cccccc;
     text-align: center;
+    background-color: rgba(0, 0, 0, 0.8);
+    padding: 25px;
+    border-radius: 15px;
+    border: 2px solid #660000;
+    box-shadow: 0 0 20px rgba(255, 0, 0, 0.3);
+    max-width: 400px;
 }
 
 #instructions p {
-    font-size: 18px;
-    color: #fff;
-    text-shadow: none;
-    margin-bottom: 10px;
+    font-size: 24px;
+    color: #ff3333;
+    text-shadow: 0 0 10px #800000;
+    margin-bottom: 15px;
+    font-family: 'Creepster', cursive;
+    letter-spacing: 2px;
 }
 
 #instructions ul {
     list-style-type: none;
+    padding: 0;
 }
 
 #instructions li {
-    margin: 5px 0;
+    margin: 12px 0;
+    color: #ffffff;
+    font-size: 20px;
+    text-shadow: 0 0 5px #ff0000;
+    font-family: 'Arial', sans-serif;
+    letter-spacing: 1px;
 }
 
 /* Game Over Screen */
@@ -139,57 +204,88 @@ body {
     flex-direction: column;
     justify-content: center;
     align-items: center;
-    background-color: rgba(0, 0, 0, 0.8);
+    background: linear-gradient(rgba(20, 0, 0, 0.92), rgba(0, 0, 0, 0.98)),
+                url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y="50" x="50" text-anchor="middle" fill="rgba(255,0,0,0.15)" font-size="80">💀</text></svg>');
+    background-size: cover, 120px 120px;
+    background-repeat: no-repeat, repeat;
     z-index: 20;
 }
 
 #game-over h1 {
-    font-size: 72px;
-    color: #f00;
-    text-shadow: 0 0 20px #f00;
-    margin-bottom: 20px;
+    font-size: 120px;
+    font-family: 'Creepster', cursive;
+    color: #ff0000;
+    text-shadow: 0 0 30px #ff0000, 
+                 0 0 50px #800000,
+                 0 0 70px #400000;
+    margin-bottom: 40px;
+    letter-spacing: 12px;
+    transform: rotate(-3deg);
+    animation: bloodDrip 3s infinite;
+}
+
+@keyframes bloodDrip {
+    0%, 100% {
+        text-shadow: 0 0 30px #ff0000, 0 0 50px #800000, 0 0 70px #400000;
+        transform: rotate(-3deg) translateY(0);
+    }
+    50% {
+        text-shadow: 0 0 40px #ff0000, 0 0 60px #800000, 0 0 80px #400000;
+        transform: rotate(-3deg) translateY(10px);
+    }
 }
 
 #game-over p {
-    font-size: 36px;
-    color: #0ff;
-    text-shadow: 0 0 10px #0ff;
-    margin-bottom: 40px;
+    font-size: 42px;
+    color: #ff3333;
+    text-shadow: 0 0 20px #800000;
+    margin-bottom: 50px;
+    font-family: 'Creepster', cursive;
+    letter-spacing: 3px;
+    transform: rotate(-2deg);
 }
 
 #game-over button {
-    padding: 15px 30px;
-    font-size: 20px;
+    padding: 20px 40px;
+    font-size: 28px;
     background-color: transparent;
-    border: 2px solid;
-    border-radius: 5px;
+    border: 3px solid;
+    border-radius: 8px;
     cursor: pointer;
     transition: all 0.3s ease;
-    margin: 0 10px;
+    margin: 15px;
+    width: 280px;
+    font-family: 'Creepster', cursive;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    position: relative;
+    overflow: hidden;
 }
 
 #play-again {
-    color: #0f0;
-    border-color: #0f0;
-    box-shadow: 0 0 10px #0f0;
+    color: #33ff33;
+    border-color: #33ff33;
+    box-shadow: 0 0 15px #006600;
 }
 
 #play-again:hover {
-    background-color: #0f0;
-    color: #000;
-    box-shadow: 0 0 20px #0f0;
+    background-color: #006600;
+    color: #ffffff;
+    box-shadow: 0 0 25px #00ff00;
+    transform: scale(1.05);
 }
 
 #share-score {
-    color: #0ff;
-    border-color: #0ff;
-    box-shadow: 0 0 10px #0ff;
+    color: #ff3333;
+    border-color: #ff3333;
+    box-shadow: 0 0 15px #800000;
 }
 
 #share-score:hover {
-    background-color: #0ff;
-    color: #000;
-    box-shadow: 0 0 20px #0ff;
+    background-color: #800000;
+    color: #ffffff;
+    box-shadow: 0 0 25px #ff0000;
+    transform: scale(1.05);
 }
 
 /* Utility Classes */
@@ -199,34 +295,271 @@ body {
 
 /* Crosshair */
 .crosshair {
-    position: absolute;
+    position: fixed;
     top: 50%;
     left: 50%;
-    width: 20px;
-    height: 20px;
+    width: 24px;
+    height: 24px;
     transform: translate(-50%, -50%);
     pointer-events: none;
-    z-index: 10;
+    z-index: 99; /* Lower than UI elements which are 100+ */
 }
 
 .crosshair::before,
 .crosshair::after {
     content: '';
     position: absolute;
-    background-color: #0ff;
-    box-shadow: 0 0 5px #0ff;
+    background-color: #ffffff;
+    box-shadow: 0 0 3px rgba(0, 0, 0, 0.8), 0 0 5px #ffffff;
 }
 
 .crosshair::before {
-    width: 2px;
-    height: 20px;
-    left: 9px;
+    width: 3px;
+    height: 24px;
+    left: 10.5px;
     top: 0;
 }
 
 .crosshair::after {
-    width: 20px;
-    height: 2px;
+    width: 24px;
+    height: 3px;
     left: 0;
-    top: 9px;
+    top: 10.5px;
+}
+
+/* Hide crosshair when game is not active */
+body:not(.game-active) .crosshair {
+    display: none;
+}
+
+/* Dynamic UI Elements */
+.ui-container {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 100;
+}
+
+.hearts-container {
+    position: absolute;
+    top: 20px;
+    left: 20px;
+    display: flex;
+    gap: 10px;
+}
+
+.heart {
+    font-size: 32px;
+    text-shadow: 0 0 5px black, 0 0 5px black;
+}
+
+.wave-container {
+    position: absolute;
+    top: 70px;
+    left: 20px;
+    color: white;
+    text-shadow: 0 0 5px black, 0 0 5px black;
+    font-size: 24px;
+    font-weight: bold;
+}
+
+.score-container {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    color: white;
+    text-shadow: 0 0 5px black, 0 0 5px black;
+    font-size: 24px;
+    font-weight: bold;
+}
+
+.damage-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(255, 0, 0, 0.4);
+    pointer-events: none;
+    transition: opacity 0.15s ease-in-out;
+    opacity: 0;
+}
+
+.game-container {
+    transition: transform 0.1s ease-in-out;
+}
+
+.notification {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    color: #fff;
+    text-shadow: 2px 2px 0 #000, -2px -2px 0 #000, 2px -2px 0 #000, -2px 2px 0 #000;
+    font-size: 60px;
+    font-weight: bold;
+    opacity: 0;
+    transition: opacity 0.5s ease;
+    pointer-events: none;
+    z-index: 1000;
+}
+
+.damage-indicator {
+    position: absolute;
+    top: 40%;
+    left: 55%;
+    color: yellow;
+    text-shadow: 0 0 10px yellow;
+    font-size: 36px;
+    font-weight: bold;
+    opacity: 0;
+    transition: all 0.5s ease;
+    pointer-events: none;
+    z-index: 1000;
+}
+
+.achievement-indicator {
+    position: absolute;
+    top: 30%;
+    left: 50%;
+    transform: translateX(-50%);
+    color: gold;
+    text-shadow: 0 0 15px gold;
+    font-size: 40px;
+    font-weight: bold;
+}
+
+/* Pause Menu */
+#pause-menu {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: linear-gradient(rgba(20, 0, 0, 0.95), rgba(0, 0, 0, 0.98));
+    padding: 50px;
+    border-radius: 15px;
+    text-align: center;
+    z-index: 1000;
+    display: none;
+    min-width: 400px;
+    border: 4px solid #800000;
+    box-shadow: 0 0 40px rgba(255, 0, 0, 0.4),
+                inset 0 0 20px rgba(255, 0, 0, 0.4);
+    animation: pulseBackground 3s infinite alternate;
+}
+
+@keyframes pulseBackground {
+    0% {
+        box-shadow: 0 0 40px rgba(255, 0, 0, 0.4),
+                    inset 0 0 20px rgba(255, 0, 0, 0.4);
+    }
+    100% {
+        box-shadow: 0 0 60px rgba(255, 0, 0, 0.6),
+                    inset 0 0 30px rgba(255, 0, 0, 0.6);
+    }
+}
+
+#pause-menu h2 {
+    font-size: 64px;
+    font-family: 'Creepster', cursive;
+    color: #ff1a1a;
+    text-shadow: 0 0 20px #ff0000,
+                 0 0 40px #800000;
+    margin-bottom: 30px;
+    letter-spacing: 4px;
+    transform: rotate(-2deg);
+    animation: pauseTitle 2s infinite alternate;
+}
+
+@keyframes pauseTitle {
+    0% {
+        transform: rotate(-2deg) scale(1);
+        text-shadow: 0 0 20px #ff0000, 0 0 40px #800000;
+    }
+    100% {
+        transform: rotate(2deg) scale(1.05);
+        text-shadow: 0 0 30px #ff0000, 0 0 50px #800000;
+    }
+}
+
+#pause-menu p {
+    font-size: 24px;
+    margin-bottom: 40px;
+    color: #ff6666;
+    font-family: 'Creepster', cursive;
+    letter-spacing: 2px;
+    text-shadow: 0 0 10px #800000;
+}
+
+#pause-menu button {
+    padding: 15px 30px;
+    font-size: 28px;
+    background-color: transparent;
+    border: 3px solid;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    margin: 15px;
+    width: 250px;
+    font-family: 'Creepster', cursive;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    position: relative;
+    overflow: hidden;
+}
+
+#resume-button {
+    color: #33ff33;
+    border-color: #00cc00;
+    box-shadow: 0 0 20px #006600;
+    background: linear-gradient(rgba(0, 102, 0, 0.1), rgba(0, 102, 0, 0.2));
+}
+
+#resume-button:hover {
+    background-color: #006600;
+    color: #ffffff;
+    box-shadow: 0 0 30px #00ff00;
+    transform: scale(1.05) rotate(-1deg);
+}
+
+#quit-button {
+    color: #ff3333;
+    border-color: #cc0000;
+    box-shadow: 0 0 20px #800000;
+    background: linear-gradient(rgba(102, 0, 0, 0.1), rgba(102, 0, 0, 0.2));
+}
+
+#quit-button:hover {
+    background-color: #800000;
+    color: #ffffff;
+    box-shadow: 0 0 30px #ff0000;
+    transform: scale(1.05) rotate(1deg);
+}
+
+/* Wave Animation */
+.wave-animation {
+    font-size: 30px;
+    transition: font-size 0.3s ease;
+}
+
+.wave-animation.shrink {
+    font-size: 20px;
+}
+
+/* Damage Animation */
+.damage-overlay.show {
+    opacity: 1;
+}
+
+/* Notification Animation */
+.notification.show {
+    opacity: 1;
+}
+
+.damage-indicator.show {
+    opacity: 1;
+    transform: translateY(-20px);
 } 

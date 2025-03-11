@@ -4,110 +4,15 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Zombie Survival</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Creepster&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="styles.css">
-    <style>
-        body {
-            margin: 0;
-            overflow: hidden;
-            font-family: Arial, sans-serif;
-        }
-        
-        #start-screen, #game-over {
-            position: fixed;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            text-align: center;
-            color: white;
-            background-color: rgba(0, 0, 0, 0.8);
-            padding: 20px;
-            border-radius: 10px;
-            z-index: 1000;
-        }
-        
-        #game-over {
-            display: none;
-        }
-        
-        button {
-            font-size: 24px;
-            padding: 10px 20px;
-            margin: 10px;
-            cursor: pointer;
-            background-color: #4CAF50;
-            color: white;
-            border: none;
-            border-radius: 5px;
-        }
-        
-        button:hover {
-            background-color: #45a049;
-        }
-        
-        .crosshair {
-            position: fixed;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            width: 20px;
-            height: 20px;
-            pointer-events: none;
-            z-index: 999;
-        }
-        
-        .crosshair::before,
-        .crosshair::after {
-            content: '';
-            position: absolute;
-            background-color: white;
-        }
-        
-        .crosshair::before {
-            width: 2px;
-            height: 20px;
-            left: 9px;
-        }
-        
-        .crosshair::after {
-            width: 20px;
-            height: 2px;
-            top: 9px;
-        }
-        
-        #crosshair {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            width: 20px;
-            height: 20px;
-            transform: translate(-50%, -50%);
-            pointer-events: none;
-            z-index: 10;
-        }
-        
-        #crosshair::before,
-        #crosshair::after {
-            content: '';
-            position: absolute;
-            background-color: white;
-        }
-        
-        #crosshair::before {
-            width: 2px;
-            height: 20px;
-            left: 9px;
-            top: 0;
-        }
-        
-        #crosshair::after {
-            width: 20px;
-            height: 2px;
-            left: 0;
-            top: 9px;
-        }
-    </style>
 </head>
 <body>
+    <!-- Crosshair -->
+    <div id="crosshair" class="crosshair"></div>
+
     <!-- Game UI Overlay -->
     <div id="ui-overlay">
         <div id="score-container">Score: <span id="score">0</span></div>
@@ -135,6 +40,14 @@
         </div>
     </div>
 
+    <!-- Pause Menu -->
+    <div id="pause-menu" class="pause-menu">
+        <h2>Game Paused</h2>
+        <p>Press ESC to resume</p>
+        <button id="resume-button">Resume</button>
+        <button id="quit-button">Quit to Menu</button>
+    </div>
+
     <!-- Game Over Screen (hidden initially) -->
     <div id="game-over" class="hidden">
         <h1>GAME OVER</h1>
@@ -153,8 +66,5 @@
     <script src="js/player.js"></script>
     <script src="js/enemy.js"></script>
     <script src="js/main.js"></script>
-
-    <!-- Add this right after the body tag -->
-    <div id="crosshair"></div>
 </body>
 </html> 
