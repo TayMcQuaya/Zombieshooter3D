@@ -505,8 +505,8 @@ function shoot() {
         hitPoint.copy(camera.position).add(raycaster.ray.direction.multiplyScalar(100));
     }
     
-    // Get the barrel position in world space
-    const barrelTip = new THREE.Vector3(0.3, -0.3, -1.1);
+    // Get the barrel position in world space - moved closer to camera
+    const barrelTip = new THREE.Vector3(0.3, -0.3, -0.7); // Reduced forward offset from -1.1 to -0.7
     barrelTip.applyMatrix4(weaponModel.matrixWorld);
     
     // Calculate the exact direction from barrel to hit point
@@ -586,8 +586,8 @@ function updateProjectiles() {
         
         // Use raycaster to check for collisions with environment
         const raycaster = new THREE.Raycaster(
-            projectile.mesh.position.clone().sub(projectile.velocity), // Start position (previous position)
-            projectile.velocity.clone().normalize(), // Direction
+            projectile.mesh.position.clone().sub(projectile.velocity), // Start from previous position
+            projectile.velocity.clone().normalize(),
             0, // Near
             projectile.velocity.length() * 1.5 // Far (slightly more than movement distance)
         );
@@ -596,10 +596,7 @@ function updateProjectiles() {
         const environmentIntersects = raycaster.intersectObjects(window.environmentObjects || [], true);
         if (environmentIntersects.length > 0) {
             environmentCollision = true;
-            
-            // Create hit effect at collision point
             createHitEffect(environmentIntersects[0].point);
-            
             console.log("Projectile hit environment at", environmentIntersects[0].point);
         }
         
@@ -610,8 +607,22 @@ function updateProjectiles() {
             for (const enemy of window.enemies) {
                 if (!enemy.mesh) continue;
                 
-                const distance = projectile.mesh.position.distanceTo(enemy.mesh.position);
-                if (distance < 1.0) { // Enemy hit radius
+                // For extremely close range, also check distance from camera to enemy
+                const distanceFromPlayer = camera.position.distanceTo(enemy.mesh.position);
+                const distanceFromBullet = projectile.mesh.position.distanceTo(enemy.mesh.position);
+                
+                // Hit detection for extremely close range (within 2 units of player) or normal range
+                if ((distanceFromPlayer <= 2 && distanceFromBullet < 2) || distanceFromBullet < 1.0) {
+                    // For close range, check if enemy is in front of player
+                    if (distanceFromPlayer <= 2) {
+                        // Get direction to enemy
+                        const toEnemy = new THREE.Vector3().subVectors(enemy.mesh.position, camera.position).normalize();
+                        // Get player's forward direction
+                        const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
+                        // Check if enemy is in front (dot product > 0 means enemy is in front)
+                        if (toEnemy.dot(forward) <= 0) continue;
+                    }
+                    
                     hitEnemy = true;
                     
                     // Call enemy hit function if it exists
@@ -619,9 +630,10 @@ function updateProjectiles() {
                         window.hitEnemy(enemy);
                     }
                     
-                    // Create hit effect
+                    // Create hit effect at the impact point
                     createHitEffect(projectile.mesh.position.clone());
                     
+                    console.log("Enemy hit at distance from player:", distanceFromPlayer, "bullet distance:", distanceFromBullet);
                     break;
                 }
             }
