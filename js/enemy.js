@@ -1,24 +1,34 @@
 // enemy.js - Enemy spawning, movement, and collision
 
 // Enemy properties
-const enemySpeed = 0.015; // Even slower movement
+const enemySpeed = 0.008; // Reduced from 0.015 for slower zombies
 const enemyDamage = 1; // One heart of damage
 const enemySpawnInterval = 5000; // 5 seconds between wave checks
 const zombieColors = [0x50FF50, 0x80FF80, 0x40FF40]; // Brighter, more visible greens
 const ATTACK_COOLDOWN = 1500; // 1.5 seconds between attacks
+const SPAWN_ANIMATION_DURATION = 2000; // 2 seconds to emerge
+const MAX_PARTICLES = 50;
+const MAX_ENEMIES = 15;
 
-// Array to track enemies
+// Array to track enemies and particles
 let enemies = [];
+let particles = [];
 let enemySpawner = null;
 let waveNumber = 0;
 let waveInProgress = false;
 
 // Initialize enemy system
 function initEnemies() {
-    // Nothing to initialize yet
     enemies = [];
+    particles = [];
     waveNumber = 0;
     waveInProgress = false;
+    
+    // Make enemies globally accessible
+    window.enemies = enemies;
+    window.hitEnemy = hitEnemy;
+    
+    console.log("Enemy system initialized");
 }
 
 // Start spawning enemies
@@ -60,15 +70,16 @@ function spawnEnemyWave() {
     waveNumber++;
     waveInProgress = true;
     
-    // Calculate number of enemies to spawn based on wave number (fewer zombies)
-    const enemyCount = 3 + Math.floor(waveNumber / 2);
+    // Calculate number of enemies (capped at MAX_ENEMIES)
+    const enemyCount = Math.min(3 + Math.floor(waveNumber / 2), MAX_ENEMIES);
     
-    // Spawn enemies
+    // Spawn enemies with delay
     for (let i = 0; i < enemyCount; i++) {
-        // Stagger the spawning of zombies to make them appear one by one
         setTimeout(() => {
-            spawnEnemy();
-        }, i * 1000); // Spawn one zombie every second
+            if (enemies.length < MAX_ENEMIES) {
+                spawnEnemy();
+            }
+        }, i * 1000);
     }
     
     // Play wave sound
@@ -80,48 +91,75 @@ function spawnEnemyWave() {
 
 // Spawn a single enemy
 function spawnEnemy() {
-    const geo = new THREE.BoxGeometry(1, 2, 1); // Zombie-like shape
+    const geo = new THREE.BoxGeometry(1, 2, 1);
     const mat = new THREE.MeshLambertMaterial({ 
         color: zombieColors[Math.floor(Math.random() * zombieColors.length)],
-        emissive: 0x202020, // Slight glow to make them more visible
+        emissive: 0x202020,
         emissiveIntensity: 0.5
     });
     const mesh = new THREE.Mesh(geo, mat);
     
     // Random position at arena edge
     const angle = Math.random() * Math.PI * 2;
-    const radius = 20; // Spawn distance from center
-    mesh.position.set(
-        Math.cos(angle) * radius,
-        1, // Height off ground
-        Math.sin(angle) * radius
-    );
+    const radius = 20;
+    const spawnX = Math.cos(angle) * radius;
+    const spawnZ = Math.sin(angle) * radius;
+    
+    // Start position (underground)
+    mesh.position.set(spawnX, -2, spawnZ);
     
     const enemy = {
         mesh: mesh,
-        health: 3,
+        health: 3,  // Zombie dies after 3 hits
         lastHit: 0,
         isHit: false,
-        lastAttack: 0 // Track last attack time
+        lastAttack: 0,
+        spawnTime: Date.now(),
+        isSpawning: true,
+        targetY: 1
     };
     
     scene.add(mesh);
     enemies.push(enemy);
+    
+    // Update global reference
+    window.enemies = enemies;
+    
+    console.log("Spawned zombie with health:", enemy.health);
 }
 
-// Handle enemy being hit
+// Hit enemy (reduce health)
 function hitEnemy(enemy) {
-    enemy.health--;
-    enemy.lastHit = Date.now();
-    enemy.isHit = true;
+    console.log("Hit enemy called, health before:", enemy.health);
     
-    // Flash red
+    // Prevent multiple hits in quick succession
+    const now = Date.now();
+    if (enemy.isHit && now - enemy.lastHit < 200) {
+        console.log("Hit ignored - too soon after last hit");
+        return;
+    }
+    
+    // Reduce health
+    enemy.health -= 1;
+    enemy.isHit = true;
+    enemy.lastHit = now;
+    
+    // Visual feedback - flash red
     enemy.mesh.material.emissive.setHex(0xff0000);
     
     // Play hit sound
-    playHitSound();
+    if (typeof playSound === 'function') {
+        playSound('hit');
+    }
     
+    // Create hit effect
+    createHitEffect(enemy.mesh.position, 0xff0000);
+    
+    console.log("Enemy health after hit:", enemy.health);
+    
+    // Check if enemy is destroyed
     if (enemy.health <= 0) {
+        console.log("Enemy destroyed");
         destroyEnemy(enemy);
     }
 }
@@ -129,37 +167,86 @@ function hitEnemy(enemy) {
 // Update enemies
 function updateEnemies() {
     const now = Date.now();
+    updateParticles();
     
-    enemies.forEach((enemy) => {
-        // Move towards player
-        const directionToPlayer = new THREE.Vector3()
-            .subVectors(camera.position, enemy.mesh.position)
-            .normalize();
+    for (let i = enemies.length - 1; i >= 0; i--) {
+        const enemy = enemies[i];
         
-        enemy.mesh.position.add(
-            directionToPlayer.multiplyScalar(enemySpeed)
-        );
-        
-        // Check for hit effect reset
-        if (enemy.isHit && now - enemy.lastHit > 200) {
-            enemy.isHit = false;
-            enemy.mesh.material.emissive.setHex(0x202020); // Return to default glow
-        }
-        
-        // Check for collision with player
-        if (enemy.mesh.position.distanceTo(camera.position) < 2) {
-            // Only attack if enough time has passed since last attack
-            if (now - enemy.lastAttack >= ATTACK_COOLDOWN) {
-                damagePlayer();
-                enemy.lastAttack = now;
-                // Push enemy back slightly
-                enemy.mesh.position.sub(directionToPlayer.multiplyScalar(3));
+        if (enemy.isSpawning) {
+            const spawnProgress = (now - enemy.spawnTime) / SPAWN_ANIMATION_DURATION;
+            if (spawnProgress < 1) {
+                const targetY = enemy.targetY;
+                const currentY = -2 + (spawnProgress * (targetY + 2));
+                enemy.mesh.position.y = currentY;
+                enemy.mesh.rotation.x = Math.sin(spawnProgress * Math.PI * 4) * 0.1;
+                enemy.mesh.rotation.z = Math.cos(spawnProgress * Math.PI * 4) * 0.1;
+                continue;
+            } else {
+                enemy.isSpawning = false;
+                enemy.mesh.position.y = enemy.targetY;
+                enemy.mesh.rotation.x = 0;
+                enemy.mesh.rotation.z = 0;
             }
         }
         
-        // Make zombie face player
-        enemy.mesh.lookAt(camera.position);
-    });
+        if (!enemy.isSpawning) {
+            const directionToPlayer = new THREE.Vector3()
+                .subVectors(camera.position, enemy.mesh.position)
+                .normalize();
+            
+            directionToPlayer.y = 0;
+            enemy.mesh.position.add(directionToPlayer.multiplyScalar(enemySpeed));
+            enemy.mesh.position.y = enemy.targetY;
+            
+            enemy.mesh.lookAt(new THREE.Vector3(
+                camera.position.x,
+                enemy.mesh.position.y,
+                camera.position.z
+            ));
+            
+            // Simple environment collision check (less frequent)
+            if (typeof window.environmentObjects !== 'undefined' && Math.random() < 0.1) {
+                const zombieRadius = 0.5;
+                // Only check nearby objects for better performance
+                for (let j = 0; j < window.environmentObjects.length; j++) {
+                    const obj = window.environmentObjects[j];
+                    if (obj.userData && obj.userData.isCollidable) {
+                        const distance = enemy.mesh.position.distanceTo(obj.position);
+                        if (distance < 2) { // Only check close objects
+                            const minDistance = zombieRadius + (obj.userData.radius || 0.5);
+                            
+                            if (distance < minDistance) {
+                                // Push zombie away from object
+                                const pushDirection = new THREE.Vector3()
+                                    .subVectors(enemy.mesh.position, obj.position)
+                                    .normalize();
+                                enemy.mesh.position.add(pushDirection.multiplyScalar(0.1));
+                                break; // Only handle one collision per frame
+                            }
+                        }
+                    }
+                }
+            }
+            
+            // Check for player attack
+            if (!enemy.isSpawning && enemy.mesh.position.distanceTo(camera.position) < 2) {
+                if (now - enemy.lastAttack >= ATTACK_COOLDOWN) {
+                    damagePlayer();
+                    enemy.lastAttack = now;
+                    // Don't push enemy back when attacking
+                }
+            }
+        }
+        
+        // Reset hit effect
+        if (enemy.isHit && now - enemy.lastHit > 200) {
+            enemy.isHit = false;
+            enemy.mesh.material.emissive.setHex(0x202020);
+        }
+    }
+    
+    // Update global reference
+    window.enemies = enemies;
 }
 
 // Create a zombie mesh
@@ -237,91 +324,114 @@ function createZombie() {
 
 // Destroy an enemy (when hit by projectile)
 function destroyEnemy(enemy) {
-    // Remove enemy from scene
+    console.log("Destroying enemy");
+    
+    // Create explosion effect
+    createExplosionEffect(enemy.mesh.position, 0xff0000);
+    
+    // Play explosion sound
+    if (typeof playSound === 'function') {
+        playSound('explode');
+    }
+    
+    // Remove from scene
     scene.remove(enemy.mesh);
     
-    // Remove enemy from array
+    // Dispose of geometry and material to free memory
+    if (enemy.mesh.geometry) enemy.mesh.geometry.dispose();
+    if (enemy.mesh.material) enemy.mesh.material.dispose();
+    
+    // Remove from array
     const index = enemies.indexOf(enemy);
     if (index !== -1) {
         enemies.splice(index, 1);
     }
     
-    // Create explosion effect
-    createExplosionEffect(enemy.mesh.position, 0x8B0000); // Dark red for blood
+    // Update score
+    if (typeof updateScore === 'function') {
+        updateScore(10);
+    }
     
-    // Play explosion sound
-    playExplosionSound();
+    // Update global reference
+    window.enemies = enemies;
     
-    // Show kill indicator
-    showKillIndicator();
-    
-    // Increase score
-    score += 10;
-    updateUI();
-    
-    // Check if wave is cleared
+    // Check if wave is complete
     if (enemies.length === 0) {
-        // Wave cleared bonus
-        score += 50;
-        updateUI();
-        
-        // Show wave cleared indicator
-        showWaveClearedIndicator();
-        
-        // Play wave cleared sound
-        playWaveClearedSound();
-        
-        // Mark wave as complete
         waveInProgress = false;
     }
 }
 
-// Clear all enemies
+// Clear all enemies and particles
 function clearEnemies() {
-    // Remove all enemies from scene
     enemies.forEach(enemy => {
         scene.remove(enemy.mesh);
+        enemy.mesh.geometry.dispose();
+        enemy.mesh.material.dispose();
     });
-    
-    // Clear enemies array
     enemies = [];
+    
+    particles.forEach(particle => {
+        scene.remove(particle.mesh);
+        particle.mesh.geometry.dispose();
+        particle.mesh.material.dispose();
+    });
+    particles = [];
 }
 
 // Create explosion effect at position
 function createExplosionEffect(position, color) {
-    // Create particle system for explosion (blood splatter)
-    const particleCount = 20;
-    const particles = [];
+    // Limit total particles
+    if (particles.length >= MAX_PARTICLES) return;
+    
+    const particleCount = Math.min(10, MAX_PARTICLES - particles.length);
     
     for (let i = 0; i < particleCount; i++) {
-        // Create particle
         const particle = new THREE.Mesh(
             new THREE.SphereGeometry(0.1, 8, 8),
             new THREE.MeshBasicMaterial({ color: color })
         );
         
-        // Set particle position
         particle.position.copy(position);
-        particle.position.y += 1; // Adjust height for zombie center mass
+        particle.position.y += 1;
         
-        // Set random velocity
         const velocity = new THREE.Vector3(
             Math.random() * 0.2 - 0.1,
             Math.random() * 0.2,
             Math.random() * 0.2 - 0.1
         );
         
-        // Add to scene
         scene.add(particle);
-        
-        // Add to particles array
         particles.push({
             mesh: particle,
             velocity: velocity,
             created: Date.now()
         });
     }
+}
+
+// Update particles
+function updateParticles() {
+    const now = Date.now();
     
+    for (let i = particles.length - 1; i >= 0; i--) {
+        const particle = particles[i];
+        
+        // Move particle
+        particle.mesh.position.add(particle.velocity);
+        particle.velocity.y -= 0.005;
+        
+        // Remove old particles
+        if (now - particle.created > 1000) {
+            scene.remove(particle.mesh);
+            particle.mesh.geometry.dispose();
+            particle.mesh.material.dispose();
+            particles.splice(i, 1);
+        }
+    }
+}
+
+// Create hit effect at position
+function createHitEffect(position, color) {
     // Animate particles
     const animateParticles = () => {
         const now = Date.now();
@@ -368,4 +478,12 @@ function createHitEffect(position, color) {
     setTimeout(() => {
         scene.remove(flash);
     }, 100);
-} 
+}
+
+// Export functions
+window.updateEnemies = updateEnemies;
+window.startEnemySpawner = startEnemySpawner;
+window.stopEnemySpawner = stopEnemySpawner;
+window.clearEnemies = clearEnemies;
+window.enemies = enemies;
+window.hitEnemy = hitEnemy; 

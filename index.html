@@ -73,6 +73,38 @@
             height: 2px;
             top: 9px;
         }
+        
+        #crosshair {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 20px;
+            height: 20px;
+            transform: translate(-50%, -50%);
+            pointer-events: none;
+            z-index: 1000;
+        }
+        
+        #crosshair::before,
+        #crosshair::after {
+            content: '';
+            position: absolute;
+            background-color: white;
+        }
+        
+        #crosshair::before {
+            width: 2px;
+            height: 20px;
+            left: 9px;
+            top: 0;
+        }
+        
+        #crosshair::after {
+            width: 20px;
+            height: 2px;
+            left: 0;
+            top: 9px;
+        }
     </style>
 </head>
 <body>
@@ -121,5 +153,8 @@
     <script src="js/player.js"></script>
     <script src="js/enemy.js"></script>
     <script src="js/main.js"></script>
+
+    <!-- Add this right after the body tag -->
+    <div id="crosshair"></div>
 </body>
 </html> 

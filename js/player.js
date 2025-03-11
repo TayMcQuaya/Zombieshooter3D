@@ -10,13 +10,22 @@ const moveState = {
 };
 
 // Player properties
-const playerSpeed = 0.08; // Reduced from 0.15 for slower movement
-const jumpForce = 0.5;
-const gravity = 0.02;
-let playerVelocity = new THREE.Vector3(0, 0, 0);
+const PLAYER_SPEED = 0.04;
+const PLAYER_RADIUS = 0.5;
+const JUMP_FORCE = 0.2;
+const GRAVITY = 0.01;
+const MAX_PROJECTILES = 20;
+const PROJECTILE_LIFETIME = 1500;
+const PROJECTILE_SPEED = 0.8;  // Reduced from 2.0 for slower bullets
+const JUMP_COOLDOWN = 500;
+const SHOOT_COOLDOWN = 400;    // 400ms between shots
+
+let velocity = new THREE.Vector3();
+let isJumping = false;
 let canJump = true;
-let shootCooldown = 0;
-const shootCooldownTime = 0.2; // Time between shots in seconds
+let lastJumpTime = 0;
+let lastShootTime = 0;
+let projectiles = [];
 
 // Camera smoothing properties
 const mouseSensitivity = 0.001; // Reduced sensitivity for smoother control
@@ -121,213 +130,253 @@ function onMouseMove(event) {
 function onMouseDown(event) {
     if (!gameActive || !document.pointerLockElement) return;
     
-    // Left click to shoot
-    if (event.button === 0) {
+    if (event.button === 0) { // Left mouse button
         shoot();
     }
 }
 
-// Update player position and state
+// Update player position
 function updatePlayer() {
-    // Handle shooting cooldown
-    if (shootCooldown > 0) {
-        shootCooldown -= clock.getElapsedTime();
-    }
+    const now = Date.now();
     
     // Apply gravity
-    playerVelocity.y -= gravity;
+    velocity.y -= GRAVITY;
     
-    // Handle jumping
-    if (moveState.jump && canJump) {
-        playerVelocity.y = jumpForce;
-        canJump = false;
-        playJumpSound();
+    // Update position based on velocity
+    camera.position.y += velocity.y;
+    
+    // Ground collision
+    if (camera.position.y < 1.7) {
+        camera.position.y = 1.7;
+        velocity.y = 0;
+        isJumping = false;
     }
     
-    // Update player position based on velocity
-    camera.position.y += playerVelocity.y;
-    
-    // Check floor collision
-    if (camera.position.y < 2) { // Player height
-        camera.position.y = 2;
-        playerVelocity.y = 0;
+    // Update jump cooldown
+    if (!canJump && now - lastJumpTime > JUMP_COOLDOWN) {
         canJump = true;
     }
     
-    // FIXED MOVEMENT SYSTEM - Completely rewritten
-    // Get camera's forward and right vectors
-    const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
-    forward.y = 0; // Keep movement on horizontal plane
-    forward.normalize();
-    
-    const right = new THREE.Vector3(1, 0, 0).applyQuaternion(camera.quaternion);
-    right.y = 0; // Keep movement on horizontal plane
-    right.normalize();
-    
-    // Reset movement vector
-    const movement = new THREE.Vector3(0, 0, 0);
-    
-    // Add movement based on keys pressed
+    // Get movement input
     if (moveState.forward) {
-        movement.add(forward);
+        const forward = new THREE.Vector3(0, 0, -1);
+        forward.applyQuaternion(camera.quaternion);
+        forward.y = 0;
+        forward.normalize();
+        
+        const newPosition = camera.position.clone().add(forward.multiplyScalar(PLAYER_SPEED));
+        moveWithCollision(newPosition);
     }
     if (moveState.backward) {
-        movement.sub(forward);
-    }
-    if (moveState.right) {
-        movement.add(right);
+        const backward = new THREE.Vector3(0, 0, 1);
+        backward.applyQuaternion(camera.quaternion);
+        backward.y = 0;
+        backward.normalize();
+        
+        const newPosition = camera.position.clone().add(backward.multiplyScalar(PLAYER_SPEED));
+        moveWithCollision(newPosition);
     }
     if (moveState.left) {
-        movement.sub(right);
-    }
-    
-    // Normalize movement vector if moving diagonally to prevent faster diagonal movement
-    if (movement.length() > 0) {
-        movement.normalize();
+        const left = new THREE.Vector3(-1, 0, 0);
+        left.applyQuaternion(camera.quaternion);
+        left.y = 0;
+        left.normalize();
         
-        // Apply movement with reduced player speed
-        movement.multiplyScalar(playerSpeed);
-        camera.position.add(movement);
+        const newPosition = camera.position.clone().add(left.multiplyScalar(PLAYER_SPEED));
+        moveWithCollision(newPosition);
+    }
+    if (moveState.right) {
+        const right = new THREE.Vector3(1, 0, 0);
+        right.applyQuaternion(camera.quaternion);
+        right.y = 0;
+        right.normalize();
+        
+        const newPosition = camera.position.clone().add(right.multiplyScalar(PLAYER_SPEED));
+        moveWithCollision(newPosition);
     }
     
-    // Keep player within arena bounds
-    const arenaSize = 24; // Slightly smaller than actual arena to prevent clipping
-    camera.position.x = Math.max(-arenaSize, Math.min(arenaSize, camera.position.x));
-    camera.position.z = Math.max(-arenaSize, Math.min(arenaSize, camera.position.z));
+    // Jump
+    if (moveState.jump && !isJumping && canJump) {
+        velocity.y = JUMP_FORCE;
+        isJumping = true;
+        canJump = false;
+        lastJumpTime = now;
+        playSound('jump');
+    }
+    
+    updateProjectiles();
 }
 
-// Shoot a projectile
+// Move with collision detection
+function moveWithCollision(newPosition) {
+    // Check for collision with environment if the function exists
+    if (typeof window.checkEnvironmentCollision === 'function') {
+        const collision = window.checkEnvironmentCollision(newPosition, PLAYER_RADIUS);
+        
+        if (!collision.collided) {
+            camera.position.copy(newPosition);
+        } else {
+            // Calculate slide movement along the collision surface
+            const pushDirection = new THREE.Vector3()
+                .subVectors(camera.position, collision.object.position)
+                .normalize();
+            pushDirection.y = 0;
+            
+            const slidePosition = camera.position.clone()
+                .add(pushDirection.multiplyScalar(collision.penetration));
+            
+            camera.position.copy(slidePosition);
+        }
+    } else {
+        // If collision check isn't available, just move
+        camera.position.copy(newPosition);
+    }
+}
+
+// Create and shoot projectile
 function shoot() {
-    if (shootCooldown > 0) return;
+    const now = Date.now();
     
-    // Create bullet
-    const bulletGeometry = new THREE.CylinderGeometry(0.05, 0.05, 0.3, 8);
-    bulletGeometry.rotateX(Math.PI / 2); // Rotate to point forward
+    // Check if we can shoot (cooldown)
+    if (now - lastShootTime < SHOOT_COOLDOWN) {
+        console.log("Shot ignored - cooldown active");
+        return;
+    }
     
-    const bulletMaterial = new THREE.MeshBasicMaterial({ 
-        color: 0xFFD700 // Gold color for bullet
-    });
+    // Update last shoot time
+    lastShootTime = now;
     
-    const bullet = new THREE.Mesh(bulletGeometry, bulletMaterial);
+    // Remove oldest projectile if at max
+    if (projectiles.length >= MAX_PROJECTILES) {
+        const oldest = projectiles.shift();
+        if (oldest) {
+            scene.remove(oldest.mesh);
+            oldest.mesh.geometry.dispose();
+            oldest.mesh.material.dispose();
+        }
+    }
     
-    // Set bullet position slightly in front of the camera
+    const bulletGeo = new THREE.CylinderGeometry(0.05, 0.05, 0.3);
+    const bulletMat = new THREE.MeshLambertMaterial({ color: 0xFFD700 });
+    const bullet = new THREE.Mesh(bulletGeo, bulletMat);
+    
+    // Position bullet at camera position
     const bulletOffset = new THREE.Vector3(0, 0, -1);
     bulletOffset.applyQuaternion(camera.quaternion);
     bullet.position.copy(camera.position).add(bulletOffset);
     
-    // Set bullet rotation to match camera direction
+    // Set bullet rotation to match camera
     bullet.quaternion.copy(camera.quaternion);
+    bullet.rotateX(Math.PI / 2);
     
-    // Add muzzle flash effect
+    // Create projectile object with velocity
+    const direction = new THREE.Vector3(0, 0, -1)
+        .applyQuaternion(camera.quaternion)
+        .normalize();
+    
+    const projectile = {
+        mesh: bullet,
+        velocity: direction.multiplyScalar(PROJECTILE_SPEED),
+        createTime: now
+    };
+    
+    scene.add(bullet);
+    projectiles.push(projectile);
+    
     createMuzzleFlash();
     
-    // Add bullet to scene
-    scene.add(bullet);
+    if (typeof playSound === 'function') {
+        playSound('shoot');
+    }
     
-    // Set bullet direction based on camera direction
-    const direction = new THREE.Vector3(0, 0, -1);
-    direction.applyQuaternion(camera.quaternion);
-    
-    // Add to projectiles array for tracking
-    projectiles.push({
-        mesh: bullet,
-        direction: direction,
-        speed: 2.0, // Increased bullet speed
-        created: Date.now()
-    });
-    
-    // Reset cooldown
-    shootCooldown = shootCooldownTime;
-    
-    // Play shoot sound
-    playShootSound();
-    
-    // Check for immediate hit (raycast)
-    checkProjectileHit(bullet.position, direction);
+    console.log("Shot fired, total projectiles:", projectiles.length);
 }
 
-// Create muzzle flash effect
-function createMuzzleFlash() {
-    // Create a point light for the muzzle flash
-    const flash = new THREE.PointLight(0xFFFF00, 2, 10);
+// Update projectiles
+function updateProjectiles() {
+    const now = Date.now();
     
-    // Position the flash in front of the camera
-    const flashOffset = new THREE.Vector3(0, 0, -2);
-    flashOffset.applyQuaternion(camera.quaternion);
-    flash.position.copy(camera.position).add(flashOffset);
-    
-    // Add to scene
-    scene.add(flash);
-    
-    // Remove after a short time
-    setTimeout(() => {
-        scene.remove(flash);
-    }, 50);
-}
-
-// Check if a projectile hits an enemy
-function checkProjectileHit(position, direction) {
-    const raycaster = new THREE.Raycaster(position, direction);
-    const hits = raycaster.intersectObjects(enemies.map(e => e.mesh));
-    
-    if (hits.length > 0 && hits[0].distance < 50) {
-        // Hit an enemy
-        const hitEnemy = enemies.find(e => e.mesh === hits[0].object);
-        if (hitEnemy) {
-            destroyEnemy(hitEnemy);
+    for (let i = projectiles.length - 1; i >= 0; i--) {
+        const projectile = projectiles[i];
+        
+        // Move projectile
+        projectile.mesh.position.add(projectile.velocity);
+        
+        // Check for collision with environment if the function exists
+        let environmentCollision = false;
+        if (typeof window.checkEnvironmentCollision === 'function') {
+            const collision = window.checkEnvironmentCollision(projectile.mesh.position, 0.05);
+            environmentCollision = collision.collided;
+        }
+        
+        // Check for collision with enemies
+        let hitEnemy = false;
+        if (window.enemies && window.enemies.length > 0) {
+            for (let j = window.enemies.length - 1; j >= 0; j--) {
+                const enemy = window.enemies[j];
+                if (!enemy.isSpawning && projectile.mesh.position.distanceTo(enemy.mesh.position) < 1) {
+                    hitEnemy = true;
+                    if (typeof window.hitEnemy === 'function') {
+                        console.log("Calling hitEnemy function");
+                        window.hitEnemy(enemy);
+                    } else {
+                        console.log("hitEnemy function not found");
+                    }
+                    break;
+                }
+            }
+        }
+        
+        // Remove projectile if it hits something or is too old
+        if (environmentCollision || hitEnemy || now - projectile.createTime > PROJECTILE_LIFETIME) {
+            scene.remove(projectile.mesh);
+            projectile.mesh.geometry.dispose();
+            projectile.mesh.material.dispose();
+            projectiles.splice(i, 1);
+            
+            if (environmentCollision) {
+                createHitEffect(projectile.mesh.position);
+            }
         }
     }
 }
 
-// Update all projectiles
-function updateProjectiles() {
-    const now = Date.now();
-    const projectilesToRemove = [];
+// Create muzzle flash effect
+function createMuzzleFlash() {
+    const light = new THREE.PointLight(0xFFFF00, 2, 3);
+    const flashOffset = new THREE.Vector3(0, 0, -1);
+    flashOffset.applyQuaternion(camera.quaternion);
+    light.position.copy(camera.position).add(flashOffset);
     
-    // Update each projectile
-    projectiles.forEach((projectile, index) => {
-        // Move projectile
-        projectile.mesh.position.add(
-            projectile.direction.clone().multiplyScalar(projectile.speed)
-        );
-        
-        // Check for collisions with enemies
-        enemies.forEach(enemy => {
-            if (projectile.mesh.position.distanceTo(enemy.mesh.position) < 1) {
-                // Hit an enemy
-                hitEnemy(enemy);
-                projectilesToRemove.push(index);
-            }
-        });
-        
-        // Remove projectiles that have been alive too long (2 seconds)
-        if (now - projectile.created > 2000) {
-            projectilesToRemove.push(index);
-        }
-        
-        // Remove projectiles that are out of bounds
-        if (
-            Math.abs(projectile.mesh.position.x) > 25 ||
-            Math.abs(projectile.mesh.position.z) > 25 ||
-            projectile.mesh.position.y < 0 ||
-            projectile.mesh.position.y > 20
-        ) {
-            projectilesToRemove.push(index);
-        }
-    });
+    scene.add(light);
     
-    // Remove projectiles (in reverse order to avoid index issues)
-    projectilesToRemove.sort((a, b) => b - a).forEach(index => {
-        const projectile = projectiles[index];
-        // Make sure to remove the mesh from the scene
-        if (projectile && projectile.mesh) {
-            scene.remove(projectile.mesh);
-            projectile.mesh.geometry.dispose();
-            projectile.mesh.material.dispose();
-        }
-        projectiles.splice(index, 1);
-    });
+    setTimeout(() => {
+        scene.remove(light);
+    }, 50);
 }
 
-// Array to track projectiles
-let projectiles = []; 
+// Create hit effect
+function createHitEffect(position) {
+    const particleCount = 3;
+    
+    for (let i = 0; i < particleCount; i++) {
+        const particle = new THREE.Mesh(
+            new THREE.SphereGeometry(0.05),
+            new THREE.MeshBasicMaterial({ color: 0xFFD700 })
+        );
+        
+        particle.position.copy(position);
+        
+        scene.add(particle);
+        
+        setTimeout(() => {
+            scene.remove(particle);
+            particle.geometry.dispose();
+            particle.material.dispose();
+        }, 200);
+    }
+}
+
+// Export functions
+window.updatePlayer = updatePlayer;
+window.shoot = shoot; 
