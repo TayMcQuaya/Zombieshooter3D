@@ -330,9 +330,17 @@ function onWindowResize() {
 
 // Handle key down events for game control
 function handleKeyDown(event) {
-    // Check for Escape key to toggle pause
-    if (event.key === 'Escape' && gameActive) {
+    // Check for Escape key to pause only (not unpause)
+    if (event.key === 'Escape' && gameActive && !gamePaused) {
         togglePause();
+    }
+    
+    // Toggle controls display with H key
+    if (event.key.toLowerCase() === 'h' && gameActive) {
+        const controlsDisplay = document.getElementById('controls-display');
+        if (controlsDisplay) {
+            controlsDisplay.classList.toggle('visible');
+        }
     }
 }
 
@@ -354,9 +362,9 @@ function togglePause() {
         }
     } else {
         // Resume the game
+        hidePauseMenu();
         document.body.classList.add('game-active');
         document.body.requestPointerLock();
-        hidePauseMenu();
         if (typeof resumeBackgroundMusic === 'function') {
             resumeBackgroundMusic();
         }
@@ -381,7 +389,15 @@ function hidePauseMenu() {
 function initPauseMenu() {
     const resumeButton = document.getElementById('resume-button');
     if (resumeButton) {
-        resumeButton.addEventListener('click', togglePause);
+        resumeButton.addEventListener('click', () => {
+            gamePaused = false;
+            hidePauseMenu();
+            document.body.classList.add('game-active');
+            document.body.requestPointerLock();
+            if (typeof resumeBackgroundMusic === 'function') {
+                resumeBackgroundMusic();
+            }
+        });
     }
     
     const quitButton = document.getElementById('quit-button');
@@ -430,6 +446,12 @@ function startGame() {
     
     // Add game-active class to body
     document.body.classList.add('game-active');
+    
+    // Show controls display by default when game starts
+    const controlsDisplay = document.getElementById('controls-display');
+    if (controlsDisplay) {
+        controlsDisplay.classList.add('visible');
+    }
     
     // Hide start screen
     const startScreen = document.getElementById('start-screen');

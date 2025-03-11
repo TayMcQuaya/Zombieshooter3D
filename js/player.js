@@ -62,6 +62,9 @@ function initPlayer() {
     // Set up mouse click for shooting
     document.addEventListener('mousedown', onMouseDown);
     
+    // Set up pointer lock change event
+    document.addEventListener('pointerlockchange', onPointerLockChange);
+    
     // Initialize last position
     lastPosition = new THREE.Vector3();
     lastPosition.copy(camera.position);
@@ -248,7 +251,8 @@ function onKeyUp(event) {
 
 // Handle mouse movement for looking around
 function onMouseMove(event) {
-    if (!gameActive || !document.pointerLockElement) return;
+    // Only handle mouse movement if game is active and not paused
+    if (!gameActive || gamePaused) return;
     
     // Get mouse movement
     let movementX = event.movementX || 0;
@@ -300,6 +304,24 @@ function onMouseDown(event) {
     
     if (event.button === 0) { // Left mouse button
         shoot();
+    }
+}
+
+// Handle pointer lock change
+function onPointerLockChange() {
+    if (document.pointerLockElement === document.body) {
+        console.log('Pointer lock active');
+        if (gameActive && !gamePaused) {
+            document.body.classList.add('game-active');
+        }
+    } else {
+        console.log('Pointer lock inactive');
+        if (gameActive && !gamePaused) {
+            // If game is active and not paused, but we lost pointer lock, pause the game
+            if (typeof togglePause === 'function') {
+                togglePause();
+            }
+        }
     }
 }
 
