@@ -115,82 +115,85 @@ function createEnvironment() {
     // Add some environmental objects
     addEnvironmentalObjects();
     
+    // Add atmospheric effects
+    addAtmosphericEffects();
+    
     console.log("Environment created with", window.environmentObjects.length, "objects");
 }
 
 // Create a skybox
 function createSkybox() {
-    // Create a blue sky background
-    scene.background = new THREE.Color(0x87CEEB);
+    // Create a dark night sky background
+    scene.background = new THREE.Color(0x0A0E1A); // Dark blue/black night sky
     
-    // Add clouds
-    createClouds();
+    // Add stars
+    createStars();
     
-    console.log("Skybox created");
+    console.log("Night skybox created");
 }
 
-// Create clouds
-function createClouds() {
-    const cloudCount = 20;
+// Create stars for night sky
+function createStars() {
+    const starCount = 500;
     
-    // Create cloud texture using canvas
-    const cloudCanvas = document.createElement('canvas');
-    cloudCanvas.width = 128;
-    cloudCanvas.height = 128;
-    const ctx = cloudCanvas.getContext('2d');
+    // Create star texture using canvas
+    const starCanvas = document.createElement('canvas');
+    starCanvas.width = 32;
+    starCanvas.height = 32;
+    const ctx = starCanvas.getContext('2d');
     
-    // Draw cloud
-    ctx.fillStyle = 'rgba(255, 255, 255, 0)';
-    ctx.fillRect(0, 0, 128, 128);
+    // Draw star
+    ctx.fillStyle = 'rgba(0, 0, 0, 0)';
+    ctx.fillRect(0, 0, 32, 32);
     
-    // Draw cloud puffs
-    ctx.fillStyle = 'white';
-    ctx.beginPath();
-    ctx.arc(64, 64, 32, 0, Math.PI * 2);
-    ctx.arc(45, 50, 25, 0, Math.PI * 2);
-    ctx.arc(85, 55, 23, 0, Math.PI * 2);
-    ctx.arc(40, 75, 20, 0, Math.PI * 2);
-    ctx.arc(85, 80, 22, 0, Math.PI * 2);
-    ctx.fill();
+    // Create a radial gradient for the star
+    const gradient = ctx.createRadialGradient(16, 16, 0, 16, 16, 16);
+    gradient.addColorStop(0, 'rgba(255, 255, 255, 1)');
+    gradient.addColorStop(0.2, 'rgba(255, 255, 255, 0.8)');
+    gradient.addColorStop(0.5, 'rgba(200, 200, 255, 0.3)');
+    gradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
     
-    const cloudTexture = new THREE.CanvasTexture(cloudCanvas);
+    ctx.fillStyle = gradient;
+    ctx.fillRect(0, 0, 32, 32);
     
-    for (let i = 0; i < cloudCount; i++) {
-        // Create cloud sprite
-        const cloudMaterial = new THREE.SpriteMaterial({
-            map: cloudTexture,
+    const starTexture = new THREE.CanvasTexture(starCanvas);
+    
+    for (let i = 0; i < starCount; i++) {
+        // Create star sprite
+        const starMaterial = new THREE.SpriteMaterial({
+            map: starTexture,
             transparent: true,
-            opacity: 0.8
+            opacity: Math.random() * 0.5 + 0.5 // Vary star brightness
         });
         
-        const cloud = new THREE.Sprite(cloudMaterial);
+        const star = new THREE.Sprite(starMaterial);
         
-        // Random position in sky
-        const angle = Math.random() * Math.PI * 2;
-        const radius = Math.random() * 30 + 30; // Between 30 and 60 units from center
-        const height = Math.random() * 20 + 20; // Between 20 and 40 units high
+        // Random position in sky dome
+        const phi = Math.random() * Math.PI * 2; // Around
+        const theta = Math.random() * Math.PI / 2; // Up
+        const radius = 100; // Sky dome radius
         
-        cloud.position.set(
-            Math.cos(angle) * radius,
-            height,
-            Math.sin(angle) * radius
+        star.position.set(
+            radius * Math.sin(theta) * Math.cos(phi),
+            radius * Math.cos(theta),
+            radius * Math.sin(theta) * Math.sin(phi)
         );
         
-        // Random scale
-        const scale = Math.random() * 10 + 10;
-        cloud.scale.set(scale, scale, 1);
+        // Random scale for different star sizes
+        const scale = Math.random() * 0.5 + 0.5;
+        star.scale.set(scale, scale, 1);
         
-        scene.add(cloud);
+        scene.add(star);
     }
     
-    console.log("Clouds created");
+    console.log("Stars created");
 }
 
-// Create sun and lighting
+// Create moon and night lighting
 function createSun() {
-    // Create a main directional light (sun)
-    sun = new THREE.DirectionalLight(0xffffcc, 0.8);
-    sun.position.set(0, 100, 0); // Position directly overhead for more even lighting
+    // Create a main directional light (moonlight)
+    sun = new THREE.DirectionalLight(0xCCDDFF, 0.3); // Soft blue-white moonlight, lower intensity
+    sun.position.set(30, 50, 30); // Position at an angle for dramatic shadows
     sun.castShadow = true;
     
     // Configure shadow properties for better quality
@@ -203,38 +206,75 @@ function createSun() {
     sun.shadow.camera.top = 100;
     sun.shadow.camera.bottom = -100;
     
-    // Add a helper to visualize the light's shadow camera (useful for debugging)
-    // const helper = new THREE.CameraHelper(sun.shadow.camera);
-    // scene.add(helper);
-    
     scene.add(sun);
     
-    // Add hemisphere light for more natural outdoor lighting
-    // This light gradually changes from sky color to ground color
+    // Add hemisphere light for subtle night lighting
     const hemisphereLight = new THREE.HemisphereLight(
-        0x87CEEB, // Sky color (light blue)
-        0x556B2F, // Ground color (dark olive green)
-        0.6       // Intensity
+        0x0A1030, // Sky color (dark blue)
+        0x0A1010, // Ground color (very dark)
+        0.2       // Low intensity
     );
     scene.add(hemisphereLight);
     
-    // Add ambient light for general illumination (fill light)
-    const ambientLight = new THREE.AmbientLight(0x404040, 0.4);
+    // Add ambient light for minimal illumination (night vision)
+    const ambientLight = new THREE.AmbientLight(0x101020, 0.2);
     scene.add(ambientLight);
     
-    // Add a secondary directional light from a different angle to reduce harsh shadows
-    const secondaryLight = new THREE.DirectionalLight(0xffffee, 0.3);
-    secondaryLight.position.set(-50, 50, -50); // Coming from the opposite direction
-    scene.add(secondaryLight);
+    // Create a visual representation of the moon
+    const moonGeometry = new THREE.SphereGeometry(5, 32, 32);
     
-    // Create a visual representation of the sun
-    const sunGeometry = new THREE.SphereGeometry(10, 32, 32);
-    const sunMaterial = new THREE.MeshBasicMaterial({ color: 0xffff00 });
-    const sunMesh = new THREE.Mesh(sunGeometry, sunMaterial);
-    sunMesh.position.copy(sun.position);
-    scene.add(sunMesh);
+    // Create moon texture using canvas
+    const moonCanvas = document.createElement('canvas');
+    moonCanvas.width = 256;
+    moonCanvas.height = 256;
+    const ctx = moonCanvas.getContext('2d');
     
-    console.log("Enhanced lighting system created");
+    // Draw moon base
+    ctx.fillStyle = '#FFFFFF';
+    ctx.beginPath();
+    ctx.arc(128, 128, 120, 0, Math.PI * 2);
+    ctx.fill();
+    
+    // Add some subtle moon details/craters
+    for (let i = 0; i < 20; i++) {
+        const x = Math.random() * 200 + 28;
+        const y = Math.random() * 200 + 28;
+        const radius = Math.random() * 10 + 5;
+        
+        ctx.fillStyle = `rgba(200, 200, 220, ${Math.random() * 0.5 + 0.5})`;
+        ctx.beginPath();
+        ctx.arc(x, y, radius, 0, Math.PI * 2);
+        ctx.fill();
+    }
+    
+    const moonTexture = new THREE.CanvasTexture(moonCanvas);
+    
+    // Create a glowing material for the moon
+    const moonMaterial = new THREE.MeshBasicMaterial({ 
+        map: moonTexture,
+        color: 0xFFFFFF
+    });
+    
+    const moon = new THREE.Mesh(moonGeometry, moonMaterial);
+    moon.position.copy(sun.position);
+    
+    // Add a subtle glow effect around the moon
+    const moonGlowGeometry = new THREE.SphereGeometry(5.5, 32, 32);
+    const moonGlowMaterial = new THREE.MeshBasicMaterial({
+        color: 0xCCDDFF,
+        transparent: true,
+        opacity: 0.2
+    });
+    const moonGlow = new THREE.Mesh(moonGlowGeometry, moonGlowMaterial);
+    moonGlow.position.copy(sun.position);
+    
+    scene.add(moon);
+    scene.add(moonGlow);
+    
+    // Add fog to the scene for atmospheric effect
+    scene.fog = new THREE.FogExp2(0x0A0E1A, 0.015); // Exponential fog with night sky color
+    
+    console.log("Night lighting system created with moon");
 }
 
 // Create ground
@@ -245,23 +285,24 @@ function createGround() {
     // Create grass texture
     const grassTexture = createGrassTexture();
     
-    // Create a more realistic ground material with texture
+    // Create a more realistic ground material with texture - darker for night
     const groundMaterial = new THREE.MeshPhongMaterial({ 
-        color: 0xffffff, // Use white as base color to show texture properly
-        specular: 0x111111, // Low specular highlights
-        shininess: 5, // Very low shininess
-        side: THREE.DoubleSide,
-        map: grassTexture // Apply grass texture
+        color: 0x223322, // Dark green tint for night
+        map: grassTexture,
+        bumpMap: grassTexture,
+        bumpScale: 0.2,
+        shininess: 5,
+        specular: 0x111111 // Low specular for wet grass look
     });
     
-    floor = new THREE.Mesh(groundGeometry, groundMaterial);
-    floor.rotation.x = -Math.PI / 2; // Rotate to be horizontal
-    floor.position.y = 0;
-    floor.receiveShadow = true;
-    scene.add(floor);
+    const ground = new THREE.Mesh(groundGeometry, groundMaterial);
+    ground.rotation.x = -Math.PI / 2; // Rotate to be horizontal
+    ground.position.y = 0;
+    ground.receiveShadow = true;
     
-    // Create arena boundaries (invisible walls)
-    createArenaBoundaries();
+    scene.add(ground);
+    
+    console.log("Ground created");
 }
 
 // Create arena boundaries
@@ -556,11 +597,60 @@ function animate() {
     // Update enemies
     updateEnemies();
     
+    // Update atmospheric effects
+    updateAtmosphericEffects();
+    
     // Check game state (health, score)
     updateGameState();
     
     // Render scene
     renderer.render(scene, camera);
+}
+
+// Update atmospheric effects
+function updateAtmosphericEffects() {
+    // Update fireflies
+    const now = Date.now();
+    
+    if (window.fireflies && window.fireflies.length > 0) {
+        window.fireflies.forEach(firefly => {
+            if (!firefly.userData) return;
+            
+            // Gentle floating movement
+            firefly.position.y = firefly.userData.originalY + 
+                Math.sin(now * firefly.userData.speed + firefly.userData.phase) * 0.3;
+                
+            // Random horizontal drift
+            firefly.position.x += Math.sin(now * firefly.userData.speed * 0.5) * 0.01;
+            firefly.position.z += Math.cos(now * firefly.userData.speed * 0.5) * 0.01;
+            
+            // Blinking effect
+            if (now - firefly.userData.lastBlink > firefly.userData.blinkInterval) {
+                // Start a blink
+                firefly.userData.isBlinking = true;
+                firefly.userData.blinkStart = now;
+                firefly.userData.lastBlink = now;
+                firefly.userData.blinkDuration = Math.random() * 1000 + 500; // 0.5-1.5 seconds
+            }
+            
+            // Handle blinking animation
+            if (firefly.userData.isBlinking) {
+                const blinkProgress = (now - firefly.userData.blinkStart) / firefly.userData.blinkDuration;
+                
+                if (blinkProgress < 0.5) {
+                    // Fade out
+                    firefly.material.opacity = 0.8 * (1 - blinkProgress * 2);
+                } else if (blinkProgress < 1) {
+                    // Fade in
+                    firefly.material.opacity = 0.8 * ((blinkProgress - 0.5) * 2);
+                } else {
+                    // Blink complete
+                    firefly.material.opacity = 0.8;
+                    firefly.userData.isBlinking = false;
+                }
+            }
+        });
+    }
 }
 
 // Start the game
@@ -1027,6 +1117,82 @@ function createLeafTexture() {
     texture.repeat.set(1, 1);
     
     return texture;
+}
+
+// Add atmospheric effects for night scene
+function addAtmosphericEffects() {
+    // Add fireflies
+    createFireflies();
+    
+    console.log("Atmospheric effects added");
+}
+
+// Create fireflies for night atmosphere
+function createFireflies() {
+    const fireflyCount = 100;
+    
+    // Create firefly texture
+    const fireflyCanvas = document.createElement('canvas');
+    fireflyCanvas.width = 32;
+    fireflyCanvas.height = 32;
+    const ctx = fireflyCanvas.getContext('2d');
+    
+    // Draw firefly glow
+    const gradient = ctx.createRadialGradient(16, 16, 0, 16, 16, 16);
+    gradient.addColorStop(0, 'rgba(255, 255, 150, 1)');
+    gradient.addColorStop(0.2, 'rgba(255, 255, 100, 0.8)');
+    gradient.addColorStop(0.5, 'rgba(200, 255, 50, 0.4)');
+    gradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
+    
+    ctx.fillStyle = gradient;
+    ctx.fillRect(0, 0, 32, 32);
+    
+    const fireflyTexture = new THREE.CanvasTexture(fireflyCanvas);
+    
+    // Create firefly sprites
+    for (let i = 0; i < fireflyCount; i++) {
+        const fireflyMaterial = new THREE.SpriteMaterial({
+            map: fireflyTexture,
+            transparent: true,
+            opacity: 0.8,
+            blending: THREE.AdditiveBlending // Additive blending for glow effect
+        });
+        
+        const firefly = new THREE.Sprite(fireflyMaterial);
+        
+        // Random position in the scene
+        const angle = Math.random() * Math.PI * 2;
+        const radius = Math.random() * 40; // Within the arena
+        const height = Math.random() * 3 + 0.5; // Between 0.5 and 3.5 units high
+        
+        firefly.position.set(
+            Math.cos(angle) * radius,
+            height,
+            Math.sin(angle) * radius
+        );
+        
+        // Random scale for different firefly sizes
+        const scale = Math.random() * 0.3 + 0.1;
+        firefly.scale.set(scale, scale, 1);
+        
+        // Add animation data
+        firefly.userData = {
+            originalY: height,
+            speed: Math.random() * 0.01 + 0.005,
+            phase: Math.random() * Math.PI * 2,
+            blinkSpeed: Math.random() * 0.1 + 0.05,
+            lastBlink: Date.now(),
+            blinkInterval: Math.random() * 3000 + 2000 // Random blink interval between 2-5 seconds
+        };
+        
+        scene.add(firefly);
+        
+        // Add to a global array for animation
+        if (!window.fireflies) window.fireflies = [];
+        window.fireflies.push(firefly);
+    }
+    
+    console.log("Fireflies created");
 }
 
 // Initialize the game when the page loads
