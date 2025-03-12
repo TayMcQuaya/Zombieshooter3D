@@ -50,6 +50,12 @@ let weaponSwayAmount = 0.02;
 let weaponBobAmount = 0.03;
 let weaponBobSpeed = 5;
 
+// Breathing animation parameters
+let breathingTime = 0;
+const BREATHING_SPEED = 0.2; // Slow, natural breathing rate
+const BREATHING_AMOUNT = 0.004; // Increased from 0.002 to 0.004 for more noticeable movement
+const BREATHING_ROTATION = 0.0015; // Increased from 0.001 to 0.0015 for slightly more rotation
+
 // Weapon physics state - NEW
 const weaponPhysics = {
     // Target and current positions (for smooth lerping)
@@ -517,13 +523,22 @@ function updateWeaponPosition() {
     targetPos.add(cameraUp.clone().multiplyScalar(-weaponOffset.down));
     targetPos.add(cameraRight.clone().multiplyScalar(weaponOffset.right));
     
-    // COMPLETELY DISABLE BOBBING FOR ABSOLUTE STABILITY
-    // We're removing all bobbing to eliminate stuttering
+    // Update breathing animation time
+    breathingTime += BREATHING_SPEED * 0.016; // Assuming 60fps, adjust time increment
+    
+    // Apply subtle breathing animation
+    const breathingOffset = Math.sin(breathingTime * Math.PI) * BREATHING_AMOUNT;
+    targetPos.add(cameraUp.clone().multiplyScalar(breathingOffset));
     
     // Set target rotation to match camera exactly
     const targetQuaternion = camera.quaternion.clone();
     
-    // ELIMINATE ALL SWAY - Already disabled but making it clearer
+    // Apply subtle breathing rotation (slight forward/backward tilt)
+    const breathingRotation = Math.sin(breathingTime * Math.PI) * BREATHING_ROTATION;
+    const breathingQuat = new THREE.Quaternion().setFromEuler(
+        new THREE.Euler(breathingRotation, 0, 0, 'XYZ')
+    );
+    targetQuaternion.multiply(breathingQuat);
     
     // Apply very minimal recoil effect when shooting
     const now = Date.now();
@@ -531,14 +546,14 @@ function updateWeaponPosition() {
     if (timeSinceShot < 200) {
         const recoilProgress = 1 - (timeSinceShot / 200);
         const recoilCurve = Math.sin(recoilProgress * Math.PI); 
-        const recoilAmount = 0.008 * recoilCurve; // Extremely minimal recoil
+        const recoilAmount = 0.02 * recoilCurve; // Increased from 0.008 to 0.02 for more noticeable recoil
         
-        // Very slight backward movement
+        // More noticeable backward movement
         targetPos.add(cameraDirection.clone().multiplyScalar(-recoilAmount));
         
-        // Very slight upward rotation
+        // More noticeable upward rotation
         const recoilQuat = new THREE.Quaternion()
-            .setFromEuler(new THREE.Euler(-recoilAmount, 0, 0, 'XYZ'));
+            .setFromEuler(new THREE.Euler(-recoilAmount * 1.5, 0, 0, 'XYZ')); // Added multiplier for more rotation
         targetQuaternion.multiply(recoilQuat);
     }
     
