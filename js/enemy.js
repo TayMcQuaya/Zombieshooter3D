@@ -51,14 +51,32 @@ function startEnemySpawner() {
 
 // Check if we need to spawn a new wave
 function checkForNewWave() {
-    // Only spawn a new wave if there are no enemies left and no wave is in progress
-    if (enemies.length === 0 && !waveInProgress) {
+    if (!waveInProgress && enemies.length === 0) {
+        console.log("All enemies defeated, starting new wave");
+        
+        // Show wave cleared indicator
+        if (typeof showWaveClearedIndicator === 'function') {
+            showWaveClearedIndicator();
+        }
+        
+        // Play wave cleared sound
+        if (typeof playSound === 'function') {
+            playSound('wave_cleared');
+        }
+        
+        // Update score with wave clear bonus
+        if (typeof updateScore === 'function') {
+            updateScore(50); // 50 points for clearing a wave
+        }
+        
+        // Start the next wave
         spawnEnemyWave();
     }
 }
 
 // Stop spawning enemies
 function stopEnemySpawner() {
+    // Clear the enemy spawner interval
     if (enemySpawner) {
         clearInterval(enemySpawner);
         enemySpawner = null;
@@ -93,70 +111,81 @@ function spawnEnemyWave() {
     }
     
     // Play wave sound
-    playWaveSound();
+    if (typeof playSound === 'function') {
+        playSound('wave');
+    }
     
     // Update UI with wave number
-    updateWaveUI(waveNumber);
+    if (typeof updateWaveUI === 'function') {
+        updateWaveUI(waveNumber);
+    }
 }
 
 // Spawn a single enemy
 function spawnEnemy() {
     // Create zombie body with our detailed zombie skin texture
-    const geo = new THREE.BoxGeometry(1, 2, 1);
+    const geometry = new THREE.BoxGeometry(0.6, 1.8, 0.4);
     
-    // Use our detailed zombie skin texture
-    const zombieSkinTexture = createZombieSkinTexture();
+    // Use a consistent texture for all zombies for better identification
+    const color = zombieColors[Math.floor(Math.random() * zombieColors.length)];
     
-    // Create a more realistic material with the texture
-    const mat = new THREE.MeshPhongMaterial({ 
-        map: zombieSkinTexture,
-        bumpMap: zombieSkinTexture,
-        bumpScale: 0.05,
-        shininess: 0,
-        emissive: new THREE.Color(0x003300),
-        emissiveIntensity: 0.2
+    // Material with emissive property for better visibility
+    const mat = new THREE.MeshStandardMaterial({
+        color: color,
+        emissive: color,
+        emissiveIntensity: 0.2,
+        roughness: 0.8
     });
     
-    const mesh = new THREE.Mesh(geo, mat);
-    mesh.castShadow = true;
-    mesh.receiveShadow = true;
+    const mesh = new THREE.Group();
     
-    // Create zombie face with our detailed zombie face texture
-    const faceGeo = new THREE.PlaneGeometry(0.8, 0.8);
+    // Create torso
+    const body = new THREE.Mesh(geometry, mat);
+    body.castShadow = true;
+    mesh.add(body);
     
-    // Use our detailed zombie face texture
-    const faceTexture = createZombieFaceTexture();
+    // Add a head (slightly larger than before)
+    const headGeo = new THREE.BoxGeometry(0.5, 0.5, 0.5);
+    const head = new THREE.Mesh(headGeo, mat);
+    head.position.y = 1.15;
+    head.castShadow = true;
+    mesh.add(head);
     
-    const faceMat = new THREE.MeshBasicMaterial({
-        map: faceTexture,
-        transparent: true
+    // Create eyes (red for zombie look)
+    const eyeGeo = new THREE.SphereGeometry(0.08, 8, 8);
+    const eyeMat = new THREE.MeshStandardMaterial({
+        color: 0xFF0000,
+        emissive: 0xFF0000,
+        emissiveIntensity: 0.5
     });
-    const face = new THREE.Mesh(faceGeo, faceMat);
     
-    // Position face on front of zombie
-    face.position.z = 0.51;
-    face.position.y = 0.5;
-    mesh.add(face);
+    // Left eye
+    const leftEye = new THREE.Mesh(eyeGeo, eyeMat);
+    leftEye.position.set(-0.12, 1.18, 0.25);
+    mesh.add(leftEye);
     
-    // Add limbs with the same zombie skin texture
+    // Right eye
+    const rightEye = new THREE.Mesh(eyeGeo, eyeMat);
+    rightEye.position.set(0.12, 1.18, 0.25);
+    mesh.add(rightEye);
     
-    // Arms
+    // Add arms
     const armGeo = new THREE.BoxGeometry(0.25, 0.8, 0.25);
     
-    // Left arm - positioned extended forward
+    // Left arm
     const leftArm = new THREE.Mesh(armGeo, mat);
-    leftArm.position.x = -0.6;
+    leftArm.position.set(-0.42, 0, 0);
     leftArm.position.y = 0;
     // Rotate arm to extend forward
     leftArm.rotation.z = Math.random() * 0.2 - 0.1; // Slight random Z rotation
-    leftArm.rotation.x = -Math.PI / 2; // Rotate forward by 90 degrees (straight forward)
+    leftArm.rotation.x = -Math.PI / 2; // Rotate forward by 90 degrees
     leftArm.position.z = 0.4; // Move forward
     leftArm.castShadow = true;
     mesh.add(leftArm);
     
-    // Right arm - positioned extended forward
+    // Right arm
     const rightArm = new THREE.Mesh(armGeo, mat);
-    rightArm.position.x = 0.6;
+    rightArm.position.set(0.42, 0, 0);
     rightArm.position.y = 0;
     // Rotate arm to extend forward
     rightArm.rotation.z = Math.random() * 0.2 - 0.1; // Slight random Z rotation
@@ -199,7 +228,6 @@ function spawnEnemy() {
         lastHit: 0,
         isHit: false,
         lastAttack: 0,
-        spawnTime: Date.now(),
         isSpawning: true,
         targetY: 1,
         originalScale: mesh.scale.clone(),
@@ -224,6 +252,11 @@ function spawnEnemy() {
     
     // Update global reference
     window.enemies = enemies;
+    
+    // Play zombie spawn sound
+    if (typeof playSound === 'function') {
+        playSound('zombieSpawn');
+    }
     
     console.log("Spawned zombie with health:", enemy.health);
 }
@@ -284,60 +317,21 @@ function hitEnemy(enemy) {
         0.53 // Slightly in front of existing splatters
     );
     
-    // Create blood splatter
-    const splatterGeo = new THREE.PlaneGeometry(0.4 + Math.random() * 0.3, 0.4 + Math.random() * 0.3);
+    // Create blood splatter geometry
+    const splatterSize = Math.random() * 0.15 + 0.1;
+    const splatterGeo = new THREE.PlaneGeometry(splatterSize, splatterSize);
     
-    // Create blood texture
-    const canvas = document.createElement('canvas');
-    canvas.width = 128;
-    canvas.height = 128;
-    const ctx = canvas.getContext('2d');
-    
-    // Draw blood splatter
-    ctx.fillStyle = 'rgba(0, 0, 0, 0)';
-    ctx.fillRect(0, 0, 128, 128);
-    
-    // Blood color - brighter red for fresh blood
-    ctx.fillStyle = `rgba(${200 + Math.random() * 55}, ${10 + Math.random() * 20}, ${10 + Math.random() * 20}, 0.95)`;
-    
-    // Create splatter shape
-    ctx.beginPath();
-    ctx.arc(64, 64, 40 + Math.random() * 20, 0, Math.PI * 2);
-    ctx.fill();
-    
-    // Add drips
-    const dripCount = 4 + Math.floor(Math.random() * 4);
-    for (let j = 0; j < dripCount; j++) {
-        const angle = Math.random() * Math.PI * 2;
-        const length = 30 + Math.random() * 40;
-        const width = 8 + Math.random() * 12;
-        
-        const x = 64 + Math.cos(angle) * 30;
-        const y = 64 + Math.sin(angle) * 30;
-        
-        ctx.beginPath();
-        ctx.moveTo(x, y);
-        ctx.lineTo(x + Math.cos(angle) * length, y + Math.sin(angle) * length);
-        ctx.lineWidth = width;
-        ctx.strokeStyle = `rgba(${200 + Math.random() * 55}, ${10 + Math.random() * 20}, ${10 + Math.random() * 20}, 0.9)`;
-        ctx.stroke();
-    }
-    
-    // Create texture
-    const splatterTexture = new THREE.CanvasTexture(canvas);
-    
-    // Create material with improved rendering properties
+    // Create blood splatter material
     const splatterMat = new THREE.MeshBasicMaterial({
-        map: splatterTexture,
+        color: 0xff0000,
         transparent: true,
-        side: THREE.DoubleSide,
-        depthWrite: false, // Prevent z-fighting
-        depthTest: true,   // Still test against depth buffer
-        alphaTest: 0.1     // Discard very transparent pixels
+        opacity: 0.8,
+        side: THREE.DoubleSide
     });
     
-    // Create mesh
     const splatter = new THREE.Mesh(splatterGeo, splatterMat);
+    
+    // Position the splatter at the hit location
     splatter.position.copy(hitPosition);
     splatter.rotation.z = Math.random() * Math.PI * 2;
     
@@ -349,7 +343,7 @@ function hitEnemy(enemy) {
     
     enemy.mesh.add(splatter);
     
-    // Play hit sound
+    // Play hit sounds - both random hit sound and flesh hit sound
     if (typeof playSound === 'function') {
         playSound('hit');
     }
@@ -684,7 +678,7 @@ function destroyEnemy(enemy) {
     // Create dismemberment effect - break zombie into pieces
     createDismembermentEffect(enemy);
     
-    // Play explosion sound
+    // Play zombie death sound
     if (typeof playSound === 'function') {
         playSound('explode');
     }

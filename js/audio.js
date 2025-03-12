@@ -6,6 +6,14 @@ let musicEnabled = true;
 let backgroundMusic = null;
 let musicWasEnabledBeforePause = true;
 
+// Zombie sound system
+const zombieSoundSystem = {
+    sounds: [],
+    lastSoundTime: {},
+    minInterval: 5000,
+    maxInterval: 15000
+};
+
 // Initialize audio system
 function initAudio() {
     // Create audio context if Web Audio API is available
@@ -28,9 +36,8 @@ function initAudio() {
     backgroundMusic.loop = true;
     backgroundMusic.volume = 0.3;
     
-    // Use a placeholder URL for the music
-    // In a real game, you would use an actual music file
-    backgroundMusic.src = 'assets/sounds/background.mp3';
+    // Update to use the ambiente.mp3 file for background music
+    backgroundMusic.src = 'assets/sounds/ambiente.mp3';
     
     // Add themed audio controls to the page
     const audioControls = document.createElement('div');
@@ -114,6 +121,46 @@ function initAudio() {
     window.playSound = playSound;
     window.pauseBackgroundMusic = pauseBackgroundMusic;
     window.resumeBackgroundMusic = resumeBackgroundMusic;
+    
+    // Initialize zombie sound system
+    initZombieSoundSystem();
+}
+
+// Initialize zombie sound system to handle ambient zombie sounds
+function initZombieSoundSystem() {
+    // Clear any existing sounds
+    zombieSoundSystem.sounds = [];
+    zombieSoundSystem.lastSoundTime = {};
+    
+    // Start the zombie sound loop
+    setInterval(updateZombieSounds, 1000);
+}
+
+// Update zombie sounds - periodically play ambient sounds from alive zombies
+function updateZombieSounds() {
+    if (!soundEnabled || !window.enemies || window.enemies.length === 0) return;
+    
+    const now = Date.now();
+    
+    // For each zombie that's alive, maybe play a sound
+    for (const enemy of window.enemies) {
+        // Skip if zombie is spawning or we just played a sound recently
+        if (enemy.isSpawning) continue;
+        
+        const enemyId = enemy.mesh.uuid;
+        
+        // Only play sounds occasionally with random intervals
+        if (!zombieSoundSystem.lastSoundTime[enemyId] || 
+            (now - zombieSoundSystem.lastSoundTime[enemyId] > 
+             Math.random() * (zombieSoundSystem.maxInterval - zombieSoundSystem.minInterval) + zombieSoundSystem.minInterval)) {
+            
+            // Play a random zombie sound
+            playRandomZombieSound();
+            
+            // Update last sound time
+            zombieSoundSystem.lastSoundTime[enemyId] = now;
+        }
+    }
 }
 
 // Toggle sound effects
@@ -215,19 +262,20 @@ function playSound(soundType) {
             playZombieAttackSound();
             break;
         case 'healthPickup':
-            playHealthPickupSound();
-            break;
         case 'staminaPickup':
-            playStaminaPickupSound();
+            playCollectSound(); // Both health and stamina use the same collect sound
             break;
         case 'impact':
-            playImpactSound();
+            playEnvironmentHitSound();
             break;
         case 'hit':
-            playHitSound();
+            playZombieHitSound();
             break;
         case 'explode':
-            playExplosionSound();
+            playZombieDeathSound();
+            break;
+        case 'zombieSpawn':
+            playZombieSpawnSound();
             break;
         default:
             console.warn('Unknown sound type:', soundType);
@@ -240,11 +288,10 @@ function playShootSound() {
     
     // Create audio element for shoot sound
     const shootSound = document.createElement('audio');
-    shootSound.volume = 0.2;
+    shootSound.volume = 0.3;
     
-    // Use a placeholder URL for the sound
-    // In a real game, you would use an actual sound file
-    shootSound.src = 'assets/sounds/shoot.mp3';
+    // Use pistolshot.wav
+    shootSound.src = 'assets/sounds/Pistol sfx/pistolshot.wav';
     
     // Play the sound
     shootSound.play().catch(e => {
@@ -263,9 +310,9 @@ function playExplosionSound() {
     
     // Create audio element for explosion sound
     const explosionSound = document.createElement('audio');
-    explosionSound.volume = 0.3;
+    explosionSound.volume = 0.4;
     
-    // Use a placeholder URL for the sound
+    // Use the explosion sound
     explosionSound.src = 'assets/sounds/explosion.mp3';
     
     // Play the sound
@@ -279,7 +326,7 @@ function playExplosionSound() {
     };
 }
 
-// Play damage sound
+// Play damage sound (when player takes damage)
 function playDamageSound() {
     if (!soundEnabled) return;
     
@@ -287,7 +334,7 @@ function playDamageSound() {
     const damageSound = document.createElement('audio');
     damageSound.volume = 0.4;
     
-    // Use a placeholder URL for the sound
+    // Use damage sound
     damageSound.src = 'assets/sounds/damage.mp3';
     
     // Play the sound
@@ -301,16 +348,38 @@ function playDamageSound() {
     };
 }
 
+// Play death sound (when player dies)
+function playDeathSound() {
+    if (!soundEnabled) return;
+    
+    // Create audio element for death sound
+    const deathSound = document.createElement('audio');
+    deathSound.volume = 0.5;
+    
+    // Use death.wav
+    deathSound.src = 'assets/sounds/Player sfx/death.wav';
+    
+    // Play the sound
+    deathSound.play().catch(e => {
+        console.warn('Could not play death sound:', e);
+    });
+    
+    // Remove the element after playing
+    deathSound.onended = () => {
+        deathSound.remove();
+    };
+}
+
 // Play wave sound
 function playWaveSound() {
     if (!soundEnabled) return;
     
     // Create audio element for wave sound
     const waveSound = document.createElement('audio');
-    waveSound.volume = 0.3;
+    waveSound.volume = 0.4;
     
-    // Use a placeholder URL for the sound
-    waveSound.src = 'assets/sounds/wave.mp3';
+    // Use wave.wav
+    waveSound.src = 'assets/sounds/wave.wav';
     
     // Play the sound
     waveSound.play().catch(e => {
@@ -331,7 +400,7 @@ function playWaveClearedSound() {
     const waveClearedSound = document.createElement('audio');
     waveClearedSound.volume = 0.4;
     
-    // Use a placeholder URL for the sound
+    // Use wave_cleared sound
     waveClearedSound.src = 'assets/sounds/wave_cleared.mp3';
     
     // Play the sound
@@ -353,7 +422,7 @@ function playJumpSound() {
     const jumpSound = document.createElement('audio');
     jumpSound.volume = 0.2;
     
-    // Use a placeholder URL for the sound
+    // Use jump sound
     jumpSound.src = 'assets/sounds/jump.mp3';
     
     // Play the sound
@@ -367,17 +436,24 @@ function playJumpSound() {
     };
 }
 
-// Play zombie attack sound
+// Play zombie attack sound - one of the three attack sounds randomly
 function playZombieAttackSound() {
     if (!soundEnabled) return;
     
     // Create audio element for zombie attack sound
     const zombieAttackSound = document.createElement('audio');
-    zombieAttackSound.volume = 0.5;
+    zombieAttackSound.volume = 0.4;
     
-    // Use a placeholder URL for the sound
-    // In a real game, you would use an actual sound file
-    zombieAttackSound.src = 'assets/sounds/zombie_attack.mp3';
+    // Choose a random attack sound
+    const attackSounds = [
+        'assets/sounds/Zombie sfx/zombieattack1.wav',
+        'assets/sounds/Zombie sfx/zombieattack2.wav',
+        'assets/sounds/Zombie sfx/zombieattack3.wav'
+    ];
+    
+    // Randomly select one of the three attack sounds
+    const randomIndex = Math.floor(Math.random() * attackSounds.length);
+    zombieAttackSound.src = attackSounds[randomIndex];
     
     // Play the sound
     zombieAttackSound.play().catch(e => {
@@ -390,90 +466,167 @@ function playZombieAttackSound() {
     };
 }
 
-// Play health pickup sound
-function playHealthPickupSound() {
+// Play random zombie ambient sound
+function playRandomZombieSound() {
     if (!soundEnabled) return;
     
-    // Create audio element for health pickup sound
-    const healthPickupSound = document.createElement('audio');
-    healthPickupSound.volume = 0.6;
+    // Create audio element for zombie sound
+    const zombieSound = document.createElement('audio');
+    zombieSound.volume = 0.3;
     
-    // Use a placeholder URL for the sound
-    healthPickupSound.src = 'assets/sounds/health_pickup.mp3';
+    // Choose a random zombie sound
+    const zombieSounds = [
+        'assets/sounds/Zombie sfx/zombiesound1.wav',
+        'assets/sounds/Zombie sfx/zombiesound2.wav',
+        'assets/sounds/Zombie sfx/zombiesound3.wav',
+        'assets/sounds/Zombie sfx/zombiesound4.wav'
+    ];
+    
+    // Randomly select one of the four sounds
+    const randomIndex = Math.floor(Math.random() * zombieSounds.length);
+    zombieSound.src = zombieSounds[randomIndex];
     
     // Play the sound
-    healthPickupSound.play().catch(e => {
-        console.warn('Could not play health pickup sound:', e);
+    zombieSound.play().catch(e => {
+        console.warn('Could not play zombie ambient sound:', e);
     });
     
     // Remove the element after playing
-    healthPickupSound.onended = () => {
-        healthPickupSound.remove();
+    zombieSound.onended = () => {
+        zombieSound.remove();
     };
 }
 
-// Play stamina pickup sound
-function playStaminaPickupSound() {
+// Play health/stamina pickup sound
+function playCollectSound() {
     if (!soundEnabled) return;
     
-    // Create audio element for stamina pickup sound
-    const staminaPickupSound = document.createElement('audio');
-    staminaPickupSound.volume = 0.6;
+    // Create audio element for collect sound
+    const collectSound = document.createElement('audio');
+    collectSound.volume = 0.4;
     
-    // Use a placeholder URL for the sound
-    staminaPickupSound.src = 'assets/sounds/stamina_pickup.mp3';
+    // Use your collect.wav file
+    collectSound.src = 'assets/sounds/collect.wav';
     
     // Play the sound
-    staminaPickupSound.play().catch(e => {
-        console.warn('Could not play stamina pickup sound:', e);
+    collectSound.play().catch(e => {
+        console.warn('Could not play collect sound:', e);
     });
     
     // Remove the element after playing
-    staminaPickupSound.onended = () => {
-        staminaPickupSound.remove();
+    collectSound.onended = () => {
+        collectSound.remove();
     };
 }
 
-// Play impact sound
-function playImpactSound() {
+// Play environment hit sound
+function playEnvironmentHitSound() {
     if (!soundEnabled) return;
     
-    // Create audio element for impact sound
-    const impactSound = document.createElement('audio');
-    impactSound.volume = 0.3;
+    // Create audio element for environment hit sound
+    const environmentHitSound = document.createElement('audio');
+    environmentHitSound.volume = 0.3;
     
-    // Use a placeholder URL for the sound
-    impactSound.src = 'assets/sounds/impact.mp3';
+    // Use the envhit.wav file
+    environmentHitSound.src = 'assets/sounds/envhit.wav';
     
     // Play the sound
-    impactSound.play().catch(e => {
-        console.warn('Could not play impact sound:', e);
+    environmentHitSound.play().catch(e => {
+        console.warn('Could not play environment hit sound:', e);
     });
     
     // Remove the element after playing
-    impactSound.onended = () => {
-        impactSound.remove();
+    environmentHitSound.onended = () => {
+        environmentHitSound.remove();
     };
 }
 
-// Play hit sound
-function playHitSound() {
+// Play zombie hit sound - one of the three hit sounds randomly
+function playZombieHitSound() {
     if (!soundEnabled) return;
     
-    // Create audio element for hit sound
-    const hitSound = document.createElement('audio');
-    hitSound.volume = 0.4;
+    // Create audio element for zombie hit sound
+    const zombieHitSound = document.createElement('audio');
+    zombieHitSound.volume = 0.35;
     
-    // Use a placeholder URL for the sound
-    hitSound.src = 'assets/sounds/hit.mp3';
+    // Choose between the three hit sounds
+    const hitSounds = [
+        'assets/sounds/Zombie sfx/hit1.wav',
+        'assets/sounds/Zombie sfx/hit2.wav',
+        'assets/sounds/Zombie sfx/hit3.wav'
+    ];
+    
+    // Randomly select one
+    const randomIndex = Math.floor(Math.random() * hitSounds.length);
+    zombieHitSound.src = hitSounds[randomIndex];
+    
+    // Always play the flesh hit sound
+    const fleshHitSound = document.createElement('audio');
+    fleshHitSound.volume = 0.3;
+    fleshHitSound.src = 'assets/sounds/Zombie sfx/fleshhit.wav';
+    
+    // Play both sounds
+    zombieHitSound.play().catch(e => {
+        console.warn('Could not play zombie hit sound:', e);
+    });
+    
+    fleshHitSound.play().catch(e => {
+        console.warn('Could not play flesh hit sound:', e);
+    });
+    
+    // Remove elements after playing
+    zombieHitSound.onended = () => {
+        zombieHitSound.remove();
+    };
+    
+    fleshHitSound.onended = () => {
+        fleshHitSound.remove();
+    };
+}
+
+// Play zombie death sound
+function playZombieDeathSound() {
+    if (!soundEnabled) return;
+    
+    // Create audio element for zombie death sound
+    const zombieDeathSound = document.createElement('audio');
+    zombieDeathSound.volume = 0.4;
+    
+    // Use the zombiedeath.wav file
+    zombieDeathSound.src = 'assets/sounds/Zombie sfx/zombiedeath.wav';
     
     // Play the sound
-    hitSound.play().catch(e => {
-        console.warn('Could not play hit sound:', e);
+    zombieDeathSound.play().catch(e => {
+        console.warn('Could not play zombie death sound:', e);
     });
     
     // Remove the element after playing
-    hitSound.onended = () => {
-        hitSound.remove();
+    zombieDeathSound.onended = () => {
+        zombieDeathSound.remove();
     };
-} 
+}
+
+// Play zombie spawn sound
+function playZombieSpawnSound() {
+    if (!soundEnabled) return;
+    
+    // Create audio element for zombie spawn sound
+    const zombieSpawnSound = document.createElement('audio');
+    zombieSpawnSound.volume = 0.35;
+    
+    // Use the spawn.wav file
+    zombieSpawnSound.src = 'assets/sounds/Zombie sfx/spawn.wav';
+    
+    // Play the sound
+    zombieSpawnSound.play().catch(e => {
+        console.warn('Could not play zombie spawn sound:', e);
+    });
+    
+    // Remove the element after playing
+    zombieSpawnSound.onended = () => {
+        zombieSpawnSound.remove();
+    };
+}
+
+// Export additional functions for the game over screen
+window.playDeathSound = playDeathSound;

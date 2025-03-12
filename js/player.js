@@ -1074,7 +1074,7 @@ function shoot() {
     // Create muzzle flash - passing no position as we now use local coordinates
     createMuzzleFlash();
     
-    // Play sound
+    // Play sound - use pistolshot.wav
     if (typeof playSound === 'function') {
         playSound('shoot');
     }
@@ -1226,7 +1226,7 @@ function updateProjectiles() {
     }
 }
 
-// Create hit effect for environment objects (no blood)
+// Create environment hit effect
 function createEnvironmentHitEffect(position) {
     const particleCount = 6;
     
@@ -1288,7 +1288,7 @@ function createEnvironmentHitEffect(position) {
         }
     }, 30);
     
-    // Play impact sound if available
+    // Play impact sound - use envhit.wav
     if (typeof playSound === 'function') {
         playSound('impact');
     }
