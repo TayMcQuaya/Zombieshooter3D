@@ -70,11 +70,10 @@ function createPowerupModels() {
 
 // Create a heart model
 function createHeartModel() {
-    // Use a simple heart shape made from a sphere and cone
+    // Create a simple group for the heart
     const heartGroup = new THREE.Group();
     
-    // Main heart shape - two spheres and a cone
-    const sphereGeo = new THREE.SphereGeometry(0.25, 16, 16);
+    // Material for the heart
     const heartMat = new THREE.MeshPhongMaterial({ 
         color: POWERUP_TYPES.HEART.color,
         shininess: 100,
@@ -82,22 +81,31 @@ function createHeartModel() {
         emissiveIntensity: 0.5
     });
     
+    // Create a sub-group for all the heart parts to ensure they rotate together
+    const heartParts = new THREE.Group();
+    
+    // Main heart shape - two spheres and a cone
+    const sphereGeo = new THREE.SphereGeometry(0.25, 16, 16);
+    
     // Left lobe
     const leftLobe = new THREE.Mesh(sphereGeo, heartMat);
     leftLobe.position.set(-0.13, 0, 0);
-    heartGroup.add(leftLobe);
+    heartParts.add(leftLobe);
     
     // Right lobe
     const rightLobe = new THREE.Mesh(sphereGeo, heartMat);
     rightLobe.position.set(0.13, 0, 0);
-    heartGroup.add(rightLobe);
+    heartParts.add(rightLobe);
     
     // Bottom point
     const coneGeo = new THREE.ConeGeometry(0.3, 0.4, 16);
     const cone = new THREE.Mesh(coneGeo, heartMat);
     cone.rotation.z = Math.PI; // Flip the cone
     cone.position.set(0, -0.3, 0);
-    heartGroup.add(cone);
+    heartParts.add(cone);
+    
+    // Add the heart parts to the main group
+    heartGroup.add(heartParts);
     
     // Add glow effect
     const glowMat = new THREE.MeshBasicMaterial({
@@ -337,9 +345,6 @@ function updatePowerups() {
         const hoverTime = now * 0.001 * powerup.type.hoverSpeed + powerup.hoverOffset;
         const hoverHeight = Math.sin(hoverTime) * HOVER_AMPLITUDE;
         powerup.mesh.position.y = POWERUP_HEIGHT + hoverHeight;
-        
-        // Update spin effect
-        powerup.mesh.rotation.y += powerup.type.spinSpeed;
         
         // Check for player collision
         const distanceToPlayer = powerup.mesh.position.distanceTo(camera.position);
