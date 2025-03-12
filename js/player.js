@@ -63,6 +63,21 @@ let previousQuaternion = new THREE.Quaternion();
 function initPlayer() {
     console.log("Initializing player...");
     
+    // Create debug indicator in HTML
+    const debugElement = document.createElement('div');
+    debugElement.id = 'weapon-debug';
+    debugElement.style.position = 'fixed';
+    debugElement.style.top = '50px';
+    debugElement.style.left = '20px';
+    debugElement.style.backgroundColor = 'rgba(255,0,0,0.7)';
+    debugElement.style.color = 'white';
+    debugElement.style.padding = '10px';
+    debugElement.style.zIndex = '1000';
+    debugElement.style.fontFamily = 'monospace';
+    debugElement.style.fontSize = '14px';
+    debugElement.innerText = 'Weapon Debug: Initializing...';
+    document.body.appendChild(debugElement);
+    
     // Set up key listeners for movement
     document.addEventListener('keydown', onKeyDown);
     document.addEventListener('keyup', onKeyUp);
@@ -87,83 +102,173 @@ function initPlayer() {
     // Create the weapon model
     createWeaponModel();
     
+    // Add event listener for checking weapon visibility
+    setInterval(debugWeaponVisibility, 1000);
+    
     // Also create it with a delay to ensure it's visible
     setTimeout(() => {
         console.log("Creating weapon model again with delay to ensure visibility");
         createWeaponModel();
     }, 300);
     
+    // Try one more time after a longer delay for reliability
+    setTimeout(() => {
+        console.log("Creating weapon model with longer delay for extra reliability");
+        createWeaponModel();
+        // Force an update of the weapon position
+        updateWeaponPosition();
+    }, 1000);
+    
     console.log("Player initialized, camera:", camera);
+}
+
+// Debug function to check weapon visibility
+function debugWeaponVisibility() {
+    const debugElement = document.getElementById('weapon-debug');
+    if (!debugElement) return;
+    
+    if (!weaponModel) {
+        debugElement.innerText = 'Weapon Debug: NO WEAPON MODEL FOUND!';
+        debugElement.style.backgroundColor = 'rgba(255,0,0,0.7)';
+        return;
+    }
+    
+    if (!camera.children.includes(weaponModel)) {
+        debugElement.innerText = 'Weapon Debug: Weapon not attached to camera!';
+        debugElement.style.backgroundColor = 'rgba(255,0,0,0.7)';
+        return;
+    }
+    
+    debugElement.innerText = `Weapon Debug: Model exists at position ${weaponModel.position.x.toFixed(2)}, ${weaponModel.position.y.toFixed(2)}, ${weaponModel.position.z.toFixed(2)}`;
+    debugElement.style.backgroundColor = 'rgba(0,255,0,0.7)';
 }
 
 // Create weapon model (pistol and hand)
 function createWeaponModel() {
-    console.log("Creating enhanced weapon model - should be very visible");
+    console.log("WEAPON DEBUG: Creating scene-based weapon model");
+    
+    // Remove HTML overlay
+    let existingOverlay = document.getElementById('weapon-overlay');
+    if (existingOverlay) {
+        document.body.removeChild(existingOverlay);
+    }
     
     // Remove any existing weapon model
     if (weaponModel) {
-        camera.remove(weaponModel);
+        console.log("WEAPON DEBUG: Removing old weapon model");
+        if (camera.children.includes(weaponModel)) {
+            camera.remove(weaponModel);
+        } else if (scene.children.includes(weaponModel)) {
+            scene.remove(weaponModel);
+        }
     }
     
     // Create a group to hold the weapon
     weaponModel = new THREE.Group();
     
-    // Create a dramatically larger, brightly colored pistol
+    // NEW APPROACH: Ultra-visible weapon with emissive materials
 
-    // Main body - bright NEON RED box (much larger)
-    const bodyGeo = new THREE.BoxGeometry(0.5, 0.3, 0.8);
-    const bodyMat = new THREE.MeshBasicMaterial({ color: 0xFF0000 });
+    // Main body - RED box with emissive properties
+    const bodyGeo = new THREE.BoxGeometry(0.4, 0.2, 0.6);
+    const bodyMat = new THREE.MeshStandardMaterial({ 
+        color: 0xFF0000,
+        emissive: 0xFF0000,
+        emissiveIntensity: 1.0,
+        roughness: 0.5,
+        metalness: 0.8
+    });
     const body = new THREE.Mesh(bodyGeo, bodyMat);
-    body.position.set(0.3, -0.3, -0.7);
+    body.position.set(0, 0, 0);
     weaponModel.add(body);
     
-    // Barrel - BRIGHT BLUE cylinder (larger)
-    const barrelGeo = new THREE.CylinderGeometry(0.08, 0.08, 0.6);
-    const barrelMat = new THREE.MeshBasicMaterial({ color: 0x00FFFF });
+    // Barrel - BLUE cylinder with emissive properties
+    const barrelGeo = new THREE.CylinderGeometry(0.05, 0.05, 0.8);
+    const barrelMat = new THREE.MeshStandardMaterial({ 
+        color: 0x00FFFF,
+        emissive: 0x00FFFF, 
+        emissiveIntensity: 1.0,
+        roughness: 0.3,
+        metalness: 0.9
+    });
     const barrel = new THREE.Mesh(barrelGeo, barrelMat);
     barrel.rotation.x = Math.PI / 2; // Rotate to point forward
-    barrel.position.set(0.3, -0.3, -1.1);
+    barrel.position.set(0, 0, -0.5);
     weaponModel.add(barrel);
     
-    // Handle - BRIGHT YELLOW box (larger)
-    const handleGeo = new THREE.BoxGeometry(0.3, 0.5, 0.3);
-    const handleMat = new THREE.MeshBasicMaterial({ color: 0xFFFF00 });
+    // Handle - YELLOW box with emissive properties
+    const handleGeo = new THREE.BoxGeometry(0.2, 0.4, 0.2);
+    const handleMat = new THREE.MeshStandardMaterial({ 
+        color: 0xFFFF00,
+        emissive: 0xFFFF00,
+        emissiveIntensity: 1.0,
+        roughness: 0.7,
+        metalness: 0.5
+    });
     const handle = new THREE.Mesh(handleGeo, handleMat);
-    handle.position.set(0.3, -0.6, -0.7);
+    handle.position.set(0, -0.3, 0);
     weaponModel.add(handle);
     
-    // Add a very bright green sphere as a sight (much larger)
-    const sightGeo = new THREE.SphereGeometry(0.08);
-    const sightMat = new THREE.MeshBasicMaterial({ color: 0x00FF00 });
+    // Add a GREEN sphere as a sight
+    const sightGeo = new THREE.SphereGeometry(0.05);
+    const sightMat = new THREE.MeshStandardMaterial({ 
+        color: 0x00FF00,
+        emissive: 0x00FF00,
+        emissiveIntensity: 1.0,
+        roughness: 0.2,
+        metalness: 0.8
+    });
     const sight = new THREE.Mesh(sightGeo, sightMat);
-    sight.position.set(0.3, -0.2, -0.7);
+    sight.position.set(0, 0.15, 0);
     weaponModel.add(sight);
     
-    // Add a hand (pink cube)
+    // Add a hand (PINK cube)
     const handGeo = new THREE.BoxGeometry(0.3, 0.3, 0.3);
-    const handMat = new THREE.MeshBasicMaterial({ color: 0xFF69B4 });
+    const handMat = new THREE.MeshStandardMaterial({ 
+        color: 0xFF00FF,
+        emissive: 0xFF00FF,
+        emissiveIntensity: 0.8,
+        roughness: 1.0,
+        metalness: 0.0
+    });
     const hand = new THREE.Mesh(handGeo, handMat);
-    hand.position.set(0.3, -0.7, -0.5);
+    hand.position.set(0, -0.5, 0.2);
     weaponModel.add(hand);
     
-    // Position the weapon model in front of the camera
-    // Position it VERY close and high in view to be impossible to miss
-    weaponModel.position.set(0.3, 0, -0.5);
-    
-    // Make it larger overall
-    weaponModel.scale.set(1.5, 1.5, 1.5);
+    // Create visible marker at the barrel tip where bullets come from
+    const tipMarkerGeo = new THREE.SphereGeometry(0.05);
+    const tipMarkerMat = new THREE.MeshStandardMaterial({ 
+        color: 0xFFFF00,
+        emissive: 0xFFFF00,
+        emissiveIntensity: 1.0,
+        transparent: true,
+        opacity: 0.9
+    });
+    const tipMarker = new THREE.Mesh(tipMarkerGeo, tipMarkerMat);
+    tipMarker.position.set(0, 0, -0.9);
+    weaponModel.add(tipMarker);
     
     // Disable frustum culling to ensure it's always rendered
     weaponModel.traverse(function(object) {
         if (object.isMesh) {
             object.frustumCulled = false;
+            object.material.needsUpdate = true;
+            object.renderOrder = 999; // Render this after everything else
+            object.layers.enable(1); // Put on a special layer
         }
     });
     
-    // Add the weapon model to the camera
-    camera.add(weaponModel);
+    // KEY DIFFERENCE: Add the weapon to the scene, not to the camera
+    scene.add(weaponModel);
     
-    console.log("Enhanced weapon model created and added to camera:", weaponModel);
+    // Create a special light just for the weapon
+    const weaponLight = new THREE.PointLight(0xFFFFFF, 1, 5);
+    weaponLight.position.set(0, 0, 0);
+    weaponModel.add(weaponLight);
+    
+    console.log("WEAPON DEBUG: Added weapon to scene directly");
+    
+    // Force immediate update of weapon position
+    updateWeaponPosition();
     
     return weaponModel;
 }
@@ -171,46 +276,75 @@ function createWeaponModel() {
 // Update weapon position for bobbing and swaying effects
 function updateWeaponPosition() {
     if (!weaponModel) {
-        console.log("Weapon model not found, recreating...");
+        console.log("WEAPON DEBUG: No weapon model found, recreating...");
         createWeaponModel();
         return;
     }
     
-    // Log weapon visibility status to help with debugging
-    console.log("Weapon model update - position:", weaponModel.position, "visible in scene:", camera.children.includes(weaponModel));
+    // KEY DIFFERENCE: Since the weapon is in the scene, not attached to the camera,
+    // we need to position it relative to the camera's position and orientation
     
-    // Reset position to our new more visible position
-    weaponModel.position.set(0.3, 0, -0.5);
-    weaponModel.rotation.set(0, 0, 0);
+    // Get camera forward and up vectors
+    const cameraDirection = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
+    const cameraRight = new THREE.Vector3(1, 0, 0).applyQuaternion(camera.quaternion);
+    const cameraUp = new THREE.Vector3(0, 1, 0).applyQuaternion(camera.quaternion);
     
-    // Make sure scale is maintained
-    weaponModel.scale.set(1.5, 1.5, 1.5);
+    // Position to place weapon - slightly downward and in front of camera
+    const weaponOffset = {
+        forward: 0.8,  // How far forward from camera
+        down: 0.3,     // How far down from camera center
+        right: 0.3     // How far right from camera center
+    };
     
-    // Add weapon bob when moving
+    // Calculate the weapon position in world space
+    const weaponPos = new THREE.Vector3();
+    weaponPos.copy(camera.position);
+    weaponPos.add(cameraDirection.clone().multiplyScalar(weaponOffset.forward));
+    weaponPos.add(cameraUp.clone().multiplyScalar(-weaponOffset.down));
+    weaponPos.add(cameraRight.clone().multiplyScalar(weaponOffset.right));
+    
+    // Apply the calculated position
+    weaponModel.position.copy(weaponPos);
+    
+    // Apply camera rotation to weapon (so it points where camera points)
+    weaponModel.quaternion.copy(camera.quaternion);
+    
+    // Add bobbing effect when moving
     if (moveState.forward || moveState.backward || moveState.left || moveState.right) {
         weaponBobTime += 0.1;
-        const bobY = Math.sin(weaponBobTime * weaponBobSpeed) * weaponBobAmount;
-        const bobX = Math.cos(weaponBobTime * weaponBobSpeed * 0.5) * weaponBobAmount * 0.5;
+        const bobY = Math.sin(weaponBobTime * weaponBobSpeed) * 0.02;
+        const bobX = Math.cos(weaponBobTime * weaponBobSpeed * 0.5) * 0.01;
         
-        weaponModel.position.y += bobY;
-        weaponModel.position.x += bobX;
+        // Apply bob by moving along camera's right and up vectors
+        weaponModel.position.add(cameraUp.clone().multiplyScalar(bobY));
+        weaponModel.position.add(cameraRight.clone().multiplyScalar(bobX));
     }
     
-    // Add weapon sway based on mouse movement
+    // Apply weapon sway based on mouse movement
     if (window.lastX || window.lastY) {
-        const swayX = -window.lastX * weaponSwayAmount * 0.1;
-        const swayY = -window.lastY * weaponSwayAmount * 0.1;
+        // Create a quaternion for the sway rotation
+        const swayX = -window.lastX * 0.001;
+        const swayY = -window.lastY * 0.001;
         
-        weaponModel.rotation.y += swayX;
-        weaponModel.rotation.x += swayY;
+        const swayQuat = new THREE.Quaternion()
+            .setFromEuler(new THREE.Euler(swayY, swayX, 0, 'XYZ'));
+        
+        // Apply sway to weapon rotation
+        weaponModel.quaternion.multiply(swayQuat);
     }
     
     // Add recoil effect when shooting
     const timeSinceShot = Date.now() - lastShootTime;
     if (timeSinceShot < 200) {
-        const recoilAmount = 0.2 * (1 - timeSinceShot / 200);
-        weaponModel.position.z += recoilAmount;
-        weaponModel.rotation.x -= recoilAmount * 0.5;
+        const recoilAmount = 0.05 * (1 - timeSinceShot / 200);
+        
+        // Move backward along camera direction for recoil
+        weaponModel.position.add(cameraDirection.clone().multiplyScalar(-recoilAmount));
+        
+        // Rotate upward for recoil
+        const recoilQuat = new THREE.Quaternion()
+            .setFromEuler(new THREE.Euler(-recoilAmount, 0, 0, 'XYZ'));
+        weaponModel.quaternion.multiply(recoilQuat);
     }
 }
 
@@ -553,7 +687,7 @@ function checkCollision(position) {
     return false; // No collision
 }
 
-// Create and shoot projectile
+// Modified shoot function to work with the scene-based weapon model
 function shoot() {
     const now = Date.now();
     
@@ -566,6 +700,15 @@ function shoot() {
     // Update last shoot time
     lastShootTime = now;
     
+    // Ensure weapon model exists
+    if (!weaponModel || !scene.children.includes(weaponModel)) {
+        console.log("WEAPON DEBUG: Recreating weapon before shooting");
+        createWeaponModel();
+    }
+    
+    // Force update weapon position
+    updateWeaponPosition();
+    
     // Remove oldest projectile if at max
     if (projectiles.length >= MAX_PROJECTILES) {
         const oldest = projectiles.shift();
@@ -577,7 +720,11 @@ function shoot() {
     }
     
     const bulletGeo = new THREE.CylinderGeometry(0.05, 0.05, 0.3);
-    const bulletMat = new THREE.MeshBasicMaterial({ color: 0xFFD700 });
+    const bulletMat = new THREE.MeshBasicMaterial({ 
+        color: 0xFFD700,
+        emissive: 0xFFD700,
+        emissiveIntensity: 1.0
+    });
     const bullet = new THREE.Mesh(bulletGeo, bulletMat);
     
     // Create a raycaster from the camera center (where crosshair is)
@@ -598,21 +745,22 @@ function shoot() {
         hitPoint.copy(camera.position).add(raycaster.ray.direction.multiplyScalar(100));
     }
     
-    // Get the barrel position in world space - moved closer to camera
-    const barrelTip = new THREE.Vector3(0.3, -0.3, -0.7); // Reduced forward offset from -1.1 to -0.7
+    // Find the barrel tip in world space
+    // The tip marker is at local position (0, 0, -0.9) in the weapon model
+    const barrelTip = new THREE.Vector3(0, 0, -0.9);
     barrelTip.applyMatrix4(weaponModel.matrixWorld);
     
-    // Calculate the exact direction from barrel to hit point
+    // Calculate direction from barrel tip to hit point
     const direction = new THREE.Vector3();
     direction.subVectors(hitPoint, barrelTip).normalize();
     
     // Position bullet at barrel tip
     bullet.position.copy(barrelTip);
     
-    // Align bullet with the tilted trajectory
+    // Align bullet with trajectory
     bullet.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), direction);
     
-    // Create projectile object with velocity
+    // Create projectile object
     const projectile = {
         mesh: bullet,
         velocity: direction.clone().multiplyScalar(PROJECTILE_SPEED),
@@ -625,12 +773,19 @@ function shoot() {
     scene.add(bullet);
     projectiles.push(projectile);
     
-    // Create muzzle flash effect at barrel tip
+    // Create muzzle flash
     createMuzzleFlash(barrelTip);
     
     // Play sound
     if (typeof playSound === 'function') {
         playSound('shoot');
+    }
+    
+    // Update debug display
+    const debugElement = document.getElementById('weapon-debug');
+    if (debugElement) {
+        debugElement.innerText = `Weapon Debug: Shot fired from ${barrelTip.x.toFixed(2)}, ${barrelTip.y.toFixed(2)}, ${barrelTip.z.toFixed(2)}`;
+        debugElement.style.backgroundColor = 'rgba(255,255,0,0.7)';
     }
     
     console.log("Shot fired from", barrelTip, "to", hitPoint);

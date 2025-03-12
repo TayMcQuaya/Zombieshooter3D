@@ -20,9 +20,12 @@ function init() {
     // We'll add custom ground fog later, so don't add fog here
     // scene.fog = new THREE.Fog(0x0A0E1A, 10, 70); // Linear fog with near=10, far=70
     
-    // Create camera with a closer near clipping plane to see the weapon
-    camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.01, 1000);
+    // Create camera with a SUPER close near clipping plane to see the weapon
+    camera = new THREE.PerspectiveCamera(90, window.innerWidth / window.innerHeight, 0.0001, 1000); // Wider FOV (90 instead of 75) and closer near plane
     camera.position.y = 1.7; // Player height
+    
+    // Force the camera to render child objects
+    camera.matrixAutoUpdate = true;
     
     // Create renderer
     renderer = new THREE.WebGLRenderer({ 
@@ -808,10 +811,18 @@ function animate() {
         return;
     }
     
-    // Check if weapon model exists and create it if not
-    if (gameActive && typeof createWeaponModel === 'function' && camera.children.length === 0) {
-        console.log("No weapon model found, creating one");
-        createWeaponModel();
+    // Check if weapon model exists and create/update it
+    if (gameActive && typeof createWeaponModel === 'function') {
+        // Check if weapon exists
+        if (!weaponModel || !scene.children.includes(weaponModel)) {
+            console.log("WEAPON DEBUG: Weapon missing in scene, creating new one");
+            createWeaponModel();
+        }
+        
+        // Always update weapon position to match camera
+        if (typeof updateWeaponPosition === 'function') {
+            updateWeaponPosition();
+        }
     }
     
     // Update player movement and shooting
