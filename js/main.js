@@ -11,6 +11,17 @@ let zombieKills = 0; // New variable to track zombie kills
 let health = 100;
 let sun, skybox;
 
+// Moon easter egg variables
+let moon; // Reference to the moon object
+let moonGlow; // Reference to the moon glow effect
+let moonDefaultScale = 1.0; // Default scale of the moon
+let moonHitCount = 0; // Number of times the moon has been hit
+let moonMaxHits = 4; // Maximum number of hits before resetting
+let moonScaleFactor = 1.2; // How much the moon grows with each hit
+let moonLastHitTime = 0; // Last time the moon was hit (for cooldown)
+let moonHitCooldown = 500; // Cooldown between hits (ms)
+let isMoonAnimating = false; // Flag to track if moon is currently animating
+
 // Initialize the game
 function init() {
     // Create scene
@@ -45,6 +56,15 @@ function init() {
     window.renderer = renderer;
     window.scene = scene;
     window.zombieKills = zombieKills; // Make zombieKills globally accessible
+    
+    // Expose moon-related variables and functions for the easter egg
+    window.moon = moon;
+    window.moonGlow = moonGlow;
+    window.handleMoonHit = handleMoonHit;
+    console.log("Moon easter egg functions exposed to window:", 
+                "moon:", !!window.moon, 
+                "moonGlow:", !!window.moonGlow, 
+                "handleMoonHit:", !!window.handleMoonHit);
     
     // Initialize environment first (which will set up lighting)
     window.environmentObjects = [];
@@ -295,7 +315,7 @@ function createSun() {
         emissiveIntensity: 0.2 // Make the moon glow
     });
     
-    const moon = new THREE.Mesh(moonGeometry, moonMaterial);
+    moon = new THREE.Mesh(moonGeometry, moonMaterial);
     // Position the moon directly in front of the player's starting position
     moon.position.set(0, 60, -120);
     
@@ -306,11 +326,22 @@ function createSun() {
         transparent: true,
         opacity: 0.4
     });
-    const moonGlow = new THREE.Mesh(moonGlowGeometry, moonGlowMaterial);
+    moonGlow = new THREE.Mesh(moonGlowGeometry, moonGlowMaterial);
     moonGlow.position.copy(moon.position);
     
+    // Add moon to the scene
     scene.add(moon);
     scene.add(moonGlow);
+    
+    // Set moon properties for the easter egg
+    moon.userData.isMoon = true;
+    moon.userData.originalScale = { x: moon.scale.x, y: moon.scale.y, z: moon.scale.z };
+    moonGlow.userData.originalScale = { x: moonGlow.scale.x, y: moonGlow.scale.y, z: moonGlow.scale.z };
+    
+    // Make sure moon and moonGlow are exposed to the window object
+    window.moon = moon;
+    window.moonGlow = moonGlow;
+    console.log("Moon and moonGlow exposed to window object:", window.moon, window.moonGlow);
     
     // Update the directional light to match the moon position
     sun.position.copy(moon.position);
@@ -1536,6 +1567,102 @@ function createLeafTexture() {
     texture.repeat.set(1, 1);
     
     return texture;
+}
+
+// Handle moon hit for the easter egg
+function handleMoonHit() {
+    console.log("handleMoonHit function called!");
+    const now = Date.now();
+    
+    // Check cooldown to prevent rapid hits
+    if (now - moonLastHitTime < moonHitCooldown || isMoonAnimating) {
+        console.log("Moon hit ignored - cooldown active or animation in progress");
+        return;
+    }
+    
+    moonLastHitTime = now;
+    
+    // Increment hit counter and reset if needed
+    moonHitCount = (moonHitCount + 1) % (moonMaxHits + 1);
+    
+    // If we've reached max hits, reset to original size
+    if (moonHitCount === 0) {
+        // Animate back to original size
+        animateMoonSize(1.0);
+        console.log("Moon reset to original size");
+    } else {
+        // Calculate new scale based on hit count
+        const newScale = 1.0 + (moonHitCount * moonScaleFactor * 0.25);
+        animateMoonSize(newScale);
+        console.log(`Moon hit ${moonHitCount} times! New scale: ${newScale.toFixed(2)}`);
+    }
+    
+    // Play a special sound effect for the moon hit
+    if (typeof playSound === 'function') {
+        playSound('powerup'); // Use an existing sound or add a new one
+    }
+}
+
+// Animate the moon size change
+function animateMoonSize(targetScale) {
+    if (!moon || !moonGlow) return;
+    
+    isMoonAnimating = true;
+    
+    // Get original scales
+    const originalMoonScale = moon.userData.originalScale;
+    const originalGlowScale = moonGlow.userData.originalScale;
+    
+    // Start values
+    const startMoonScale = { x: moon.scale.x, y: moon.scale.y, z: moon.scale.z };
+    const startGlowScale = { x: moonGlow.scale.x, y: moonGlow.scale.y, z: moonGlow.scale.z };
+    
+    // Target values
+    const targetMoonScale = {
+        x: originalMoonScale.x * targetScale,
+        y: originalMoonScale.y * targetScale,
+        z: originalMoonScale.z * targetScale
+    };
+    
+    const targetGlowScale = {
+        x: originalGlowScale.x * targetScale,
+        y: originalGlowScale.y * targetScale,
+        z: originalGlowScale.z * targetScale
+    };
+    
+    // Animation variables
+    const duration = 500; // ms
+    const startTime = Date.now();
+    
+    function updateMoonSize() {
+        const elapsed = Date.now() - startTime;
+        const progress = Math.min(elapsed / duration, 1);
+        
+        // Ease in-out function for smoother animation
+        const easeProgress = progress < 0.5 
+            ? 2 * progress * progress 
+            : -1 + (4 - 2 * progress) * progress;
+        
+        // Update moon scale
+        moon.scale.x = startMoonScale.x + (targetMoonScale.x - startMoonScale.x) * easeProgress;
+        moon.scale.y = startMoonScale.y + (targetMoonScale.y - startMoonScale.y) * easeProgress;
+        moon.scale.z = startMoonScale.z + (targetMoonScale.z - startMoonScale.z) * easeProgress;
+        
+        // Update glow scale
+        moonGlow.scale.x = startGlowScale.x + (targetGlowScale.x - startGlowScale.x) * easeProgress;
+        moonGlow.scale.y = startGlowScale.y + (targetGlowScale.y - startGlowScale.y) * easeProgress;
+        moonGlow.scale.z = startGlowScale.z + (targetGlowScale.z - startGlowScale.z) * easeProgress;
+        
+        // Continue animation if not complete
+        if (progress < 1) {
+            requestAnimationFrame(updateMoonSize);
+        } else {
+            isMoonAnimating = false;
+        }
+    }
+    
+    // Start the animation
+    updateMoonSize();
 }
 
 // Initialize the game when the page loads

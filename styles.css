@@ -369,14 +369,15 @@ body {
     transform: translate(-50%, -50%);
     pointer-events: none;
     z-index: 99; /* Lower than UI elements which are 100+ */
+    --crosshair-color: #ffffff; /* Default color, will be changed when aiming at moon */
 }
 
 .crosshair::before,
 .crosshair::after {
     content: '';
     position: absolute;
-    background-color: #ffffff;
-    box-shadow: 0 0 3px rgba(0, 0, 0, 0.8), 0 0 5px #ffffff;
+    background-color: var(--crosshair-color);
+    box-shadow: 0 0 3px rgba(0, 0, 0, 0.8), 0 0 5px var(--crosshair-color);
 }
 
 .crosshair::before {

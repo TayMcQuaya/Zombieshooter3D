@@ -570,6 +570,28 @@ function onKeyDown(event) {
         case 'shift':
             moveState.run = true;  // Shift key for running
             break;
+        case 'm': // M key for testing moon hit
+            console.log("M key pressed - testing moon hit");
+            if (typeof window.handleMoonHit === 'function') {
+                window.handleMoonHit();
+            } else {
+                console.error("handleMoonHit function not available on window object");
+                
+                // Fallback: Try to directly modify the moon's scale as a test
+                if (window.moon) {
+                    const currentScale = window.moon.scale.x;
+                    const newScale = currentScale < 1.8 ? currentScale * 1.2 : 1.0;
+                    console.log(`Direct moon scaling: ${currentScale} -> ${newScale}`);
+                    window.moon.scale.set(newScale, newScale, newScale);
+                    
+                    if (window.moonGlow) {
+                        window.moonGlow.scale.set(newScale, newScale, newScale);
+                    }
+                } else {
+                    console.error("Moon object not available on window object");
+                }
+            }
+            break;
     }
 }
 
@@ -776,6 +798,22 @@ function resumePointerLock() {
     setTimeout(attemptLock, 20);
 }
 
+// Function to update crosshair color based on moon aim
+function updateCrosshairForMoonAim(angleInDegrees) {
+    const crosshair = document.getElementById('crosshair');
+    if (crosshair) {
+        // If aiming within 25 degrees of the moon (slightly larger than hit threshold)
+        // This gives the player a visual cue that they're getting close to a hit
+        if (angleInDegrees < 25) {
+            // Make it brighter yellow the closer you get to the center
+            const brightness = 100 - (angleInDegrees * 4); // 100% at 0 degrees, 0% at 25 degrees
+            crosshair.style.setProperty('--crosshair-color', `hsl(60, 100%, ${brightness}%)`);
+        } else {
+            crosshair.style.setProperty('--crosshair-color', '#ffffff'); // White when not aiming at moon
+        }
+    }
+}
+
 // Update player position
 function updatePlayer() {
     const now = Date.now();
@@ -928,6 +966,23 @@ function updatePlayer() {
         lastPosition.copy(camera.position);
     }
     
+    // Update moon aim indicator
+    if (window.moon) {
+        // Get direction from camera to moon
+        const directionToMoon = new THREE.Vector3();
+        directionToMoon.subVectors(window.moon.position, camera.position).normalize();
+        
+        // Get camera's forward direction
+        const cameraDirection = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
+        
+        // Calculate the angle between camera direction and direction to moon
+        const angleToMoon = cameraDirection.angleTo(directionToMoon);
+        const angleInDegrees = angleToMoon * (180 / Math.PI);
+        
+        // Update crosshair color based on moon aim
+        updateCrosshairForMoonAim(angleInDegrees);
+    }
+    
     // Update weapon position
     updateWeaponPosition();
     
@@ -1006,6 +1061,65 @@ function shoot() {
         createWeaponModel();
     }
     
+    // Create a raycaster from the camera center (where crosshair is)
+    const raycaster = new THREE.Raycaster();
+    raycaster.setFromCamera(new THREE.Vector2(0, 0), camera);
+    
+    // SPECIAL MOON HIT DETECTION - Enhanced with debugging
+    // Check if player is aiming at the moon, regardless of distance
+    if (window.moon) {
+        console.log("Moon object exists, attempting hit detection");
+        
+        // Get direction from camera to moon
+        const directionToMoon = new THREE.Vector3();
+        directionToMoon.subVectors(window.moon.position, camera.position).normalize();
+        
+        // Get camera's forward direction
+        const cameraDirection = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
+        
+        // Calculate the angle between camera direction and direction to moon
+        const angleToMoon = cameraDirection.angleTo(directionToMoon);
+        const angleInDegrees = angleToMoon * (180 / Math.PI);
+        
+        console.log("Angle to moon:", angleInDegrees.toFixed(2), "degrees");
+        
+        // If the angle is small enough, consider it a hit
+        // Using a much larger threshold (20 degrees) to make it very easy to hit
+        if (angleInDegrees < 20) {
+            console.log("Moon hit detected based on angle!");
+            
+            // Call the moon hit handler function
+            if (typeof window.handleMoonHit === 'function') {
+                console.log("Calling handleMoonHit function");
+                window.handleMoonHit();
+            } else {
+                console.error("handleMoonHit function not found on window object!");
+                
+                // Fallback: Try to directly modify the moon's scale as a test
+                if (window.moon) {
+                    const currentScale = window.moon.scale.x;
+                    const newScale = currentScale < 1.8 ? currentScale * 1.2 : 1.0;
+                    console.log(`Direct moon scaling: ${currentScale} -> ${newScale}`);
+                    window.moon.scale.set(newScale, newScale, newScale);
+                    
+                    if (window.moonGlow) {
+                        window.moonGlow.scale.set(newScale, newScale, newScale);
+                    }
+                }
+            }
+            
+            // Create a special visual effect showing the bullet "hitting" the moon
+            // Calculate a hit point along the ray for the visual effect
+            const hitPoint = new THREE.Vector3();
+            hitPoint.copy(camera.position).add(cameraDirection.multiplyScalar(100));
+            createMoonHitEffect(hitPoint);
+        } else {
+            console.log("No moon hit detected - angle too large");
+        }
+    } else {
+        console.error("Moon object not found on window object!");
+    }
+    
     // Remove oldest projectile if at max
     if (projectiles.length >= MAX_PROJECTILES) {
         const oldest = projectiles.shift();
@@ -1022,10 +1136,6 @@ function shoot() {
         emissive: 0xD4AF37
     });
     const bullet = new THREE.Mesh(bulletGeo, bulletMat);
-    
-    // Create a raycaster from the camera center (where crosshair is)
-    const raycaster = new THREE.Raycaster();
-    raycaster.setFromCamera(new THREE.Vector2(0, 0), camera);
     
     // Calculate the exact hit point in world space
     // Cast ray to find the intersection with objects or use a far point if no intersection
@@ -1323,6 +1433,78 @@ function updateStaminaUI() {
     if (staminaBar) {
         const staminaPercentage = (currentStamina / MAX_STAMINA) * 100;
         staminaBar.style.width = `${staminaPercentage}%`;
+    }
+}
+
+// Create a visual effect for moon hits
+function createMoonHitEffect(hitPoint) {
+    // Create a bright flash at the hit point on the moon
+    const flashGeo = new THREE.SphereGeometry(2, 16, 16);
+    const flashMat = new THREE.MeshBasicMaterial({
+        color: 0xFFFFFF,
+        transparent: true,
+        opacity: 0.8
+    });
+    const flash = new THREE.Mesh(flashGeo, flashMat);
+    flash.position.copy(hitPoint);
+    scene.add(flash);
+    
+    // Create expanding ring effect
+    const ringGeo = new THREE.RingGeometry(1, 2, 32);
+    const ringMat = new THREE.MeshBasicMaterial({
+        color: 0xFFFFFF,
+        transparent: true,
+        opacity: 0.6,
+        side: THREE.DoubleSide
+    });
+    const ring = new THREE.Mesh(ringGeo, ringMat);
+    
+    // Position the ring at the hit point, but make it face the camera
+    ring.position.copy(hitPoint);
+    ring.lookAt(camera.position);
+    scene.add(ring);
+    
+    // Animate the flash and ring
+    let age = 0;
+    const duration = 1000; // ms
+    const startTime = Date.now();
+    
+    const animateEffect = () => {
+        const now = Date.now();
+        age = now - startTime;
+        
+        if (age < duration) {
+            // Calculate progress (0 to 1)
+            const progress = age / duration;
+            
+            // Flash fades out
+            flashMat.opacity = 0.8 * (1 - progress);
+            
+            // Ring expands and fades
+            const ringSize = 1 + (progress * 5);
+            ring.scale.set(ringSize, ringSize, 1);
+            ringMat.opacity = 0.6 * (1 - progress);
+            
+            // Continue animation
+            requestAnimationFrame(animateEffect);
+        } else {
+            // Clean up
+            scene.remove(flash);
+            scene.remove(ring);
+            flashGeo.dispose();
+            flashMat.dispose();
+            ringGeo.dispose();
+            ringMat.dispose();
+        }
+    };
+    
+    // Start animation
+    animateEffect();
+    
+    // Play a special sound for moon hit
+    if (typeof playSound === 'function') {
+        // Use an existing sound that fits well for a moon hit
+        playSound('powerup');
     }
 }
 
