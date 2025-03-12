@@ -6,12 +6,14 @@ const POWERUP_TYPES = {
         name: "Heart",
         model: null,
         effect: "health",
+        healthAmount: 1, // Restore only one heart
         spinSpeed: 0.02,
         hoverSpeed: 0.5,
         hoverHeight: 0.2,
         color: 0xff0000, // Red
         flashColor: "rgba(0, 255, 0, 0.3)", // Green flash
-        soundEffect: "healthPickup"
+        soundEffect: "healthPickup",
+        scale: 0.9 // Increased size (was 0.7)
     },
     SODA: {
         name: "Soda Can",
@@ -23,7 +25,8 @@ const POWERUP_TYPES = {
         hoverHeight: 0.15,
         color: 0x0088ff, // Blue
         flashColor: "rgba(0, 100, 255, 0.3)", // Blue flash
-        soundEffect: "staminaPickup"
+        soundEffect: "staminaPickup",
+        scale: 1.0 // Increased size (was 0.8)
     }
 };
 
@@ -34,7 +37,8 @@ const WAVE_SCALING_FACTOR = 0.05; // Increased chance per wave
 const MIN_SPAWN_DISTANCE = 5; // Minimum distance from player to spawn power-ups
 const MAX_SPAWN_DISTANCE = 15; // Maximum distance from player to spawn power-ups
 const OBSTACLE_CHECK_RADIUS = 2; // Radius to check for obstacles when spawning
-const HOVER_AMPLITUDE = 0.15; // How high power-ups hover
+const HOVER_AMPLITUDE = 0.3; // How high power-ups hover (increased from 0.15)
+const POWERUP_HEIGHT = 1.5; // Base height for power-ups above ground (was 0.5)
 
 // Track active power-ups
 let powerups = [];
@@ -109,7 +113,7 @@ function createHeartModel() {
     heartGroup.add(glowSphere);
     
     // Set scale
-    heartGroup.scale.set(0.7, 0.7, 0.7);
+    heartGroup.scale.set(POWERUP_TYPES.HEART.scale, POWERUP_TYPES.HEART.scale, POWERUP_TYPES.HEART.scale);
     
     return heartGroup;
 }
@@ -181,7 +185,7 @@ function createSodaCanModel() {
     canGroup.add(glowSphere);
     
     // Set scale
-    canGroup.scale.set(0.8, 0.8, 0.8);
+    canGroup.scale.set(POWERUP_TYPES.SODA.scale, POWERUP_TYPES.SODA.scale, POWERUP_TYPES.SODA.scale);
     
     return canGroup;
 }
@@ -305,7 +309,7 @@ function createPowerup(type, position) {
     
     // Position the model
     model.position.copy(position);
-    model.position.y = 0.5; // Start slightly above ground
+    model.position.y = POWERUP_HEIGHT; // Position higher above ground
     
     // Create power-up object
     const powerup = {
@@ -332,7 +336,7 @@ function updatePowerups() {
         // Update hover effect
         const hoverTime = now * 0.001 * powerup.type.hoverSpeed + powerup.hoverOffset;
         const hoverHeight = Math.sin(hoverTime) * HOVER_AMPLITUDE;
-        powerup.mesh.position.y = 0.5 + hoverHeight;
+        powerup.mesh.position.y = POWERUP_HEIGHT + hoverHeight;
         
         // Update spin effect
         powerup.mesh.rotation.y += powerup.type.spinSpeed;
@@ -351,8 +355,8 @@ function collectPowerup(powerup) {
     if (powerup.type.effect === "health") {
         // Only collect health if not full
         if (currentHealth < MAX_HEALTH) {
-            // Restore health
-            currentHealth = MAX_HEALTH;
+            // Restore just one heart instead of full health
+            currentHealth = Math.min(currentHealth + powerup.type.healthAmount, MAX_HEALTH);
             updateHealth();
             
             // Flash screen green
