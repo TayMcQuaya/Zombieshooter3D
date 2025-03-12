@@ -372,6 +372,16 @@ function collectPowerup(powerup) {
                 playSound(powerup.type.soundEffect || 'healthPickup');
             }
             
+            // Add 5 points to score
+            if (typeof updateScore === 'function') {
+                updateScore(5);
+            }
+            
+            // Show powerup collected indicator
+            if (typeof showPowerupCollectedIndicator === 'function') {
+                showPowerupCollectedIndicator('health');
+            }
+            
             // Remove the power-up
             removePowerup(powerup);
         }
@@ -388,6 +398,16 @@ function collectPowerup(powerup) {
             // Play sound
             if (typeof playSound === 'function') {
                 playSound(powerup.type.soundEffect || 'staminaPickup');
+            }
+            
+            // Add 5 points to score
+            if (typeof updateScore === 'function') {
+                updateScore(5);
+            }
+            
+            // Show powerup collected indicator
+            if (typeof showPowerupCollectedIndicator === 'function') {
+                showPowerupCollectedIndicator('stamina');
             }
             
             // Remove the power-up
