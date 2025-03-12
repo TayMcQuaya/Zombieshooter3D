@@ -214,6 +214,21 @@ function playSound(soundType) {
         case 'zombieAttack':
             playZombieAttackSound();
             break;
+        case 'healthPickup':
+            playHealthPickupSound();
+            break;
+        case 'staminaPickup':
+            playStaminaPickupSound();
+            break;
+        case 'impact':
+            playImpactSound();
+            break;
+        case 'hit':
+            playHitSound();
+            break;
+        case 'explode':
+            playExplosionSound();
+            break;
         default:
             console.warn('Unknown sound type:', soundType);
     }
@@ -372,5 +387,93 @@ function playZombieAttackSound() {
     // Remove the element after playing
     zombieAttackSound.onended = () => {
         zombieAttackSound.remove();
+    };
+}
+
+// Play health pickup sound
+function playHealthPickupSound() {
+    if (!soundEnabled) return;
+    
+    // Create audio element for health pickup sound
+    const healthPickupSound = document.createElement('audio');
+    healthPickupSound.volume = 0.6;
+    
+    // Use a placeholder URL for the sound
+    healthPickupSound.src = 'assets/sounds/health_pickup.mp3';
+    
+    // Play the sound
+    healthPickupSound.play().catch(e => {
+        console.warn('Could not play health pickup sound:', e);
+    });
+    
+    // Remove the element after playing
+    healthPickupSound.onended = () => {
+        healthPickupSound.remove();
+    };
+}
+
+// Play stamina pickup sound
+function playStaminaPickupSound() {
+    if (!soundEnabled) return;
+    
+    // Create audio element for stamina pickup sound
+    const staminaPickupSound = document.createElement('audio');
+    staminaPickupSound.volume = 0.6;
+    
+    // Use a placeholder URL for the sound
+    staminaPickupSound.src = 'assets/sounds/stamina_pickup.mp3';
+    
+    // Play the sound
+    staminaPickupSound.play().catch(e => {
+        console.warn('Could not play stamina pickup sound:', e);
+    });
+    
+    // Remove the element after playing
+    staminaPickupSound.onended = () => {
+        staminaPickupSound.remove();
+    };
+}
+
+// Play impact sound
+function playImpactSound() {
+    if (!soundEnabled) return;
+    
+    // Create audio element for impact sound
+    const impactSound = document.createElement('audio');
+    impactSound.volume = 0.3;
+    
+    // Use a placeholder URL for the sound
+    impactSound.src = 'assets/sounds/impact.mp3';
+    
+    // Play the sound
+    impactSound.play().catch(e => {
+        console.warn('Could not play impact sound:', e);
+    });
+    
+    // Remove the element after playing
+    impactSound.onended = () => {
+        impactSound.remove();
+    };
+}
+
+// Play hit sound
+function playHitSound() {
+    if (!soundEnabled) return;
+    
+    // Create audio element for hit sound
+    const hitSound = document.createElement('audio');
+    hitSound.volume = 0.4;
+    
+    // Use a placeholder URL for the sound
+    hitSound.src = 'assets/sounds/hit.mp3';
+    
+    // Play the sound
+    hitSound.play().catch(e => {
+        console.warn('Could not play hit sound:', e);
+    });
+    
+    // Remove the element after playing
+    hitSound.onended = () => {
+        hitSound.remove();
     };
 } 

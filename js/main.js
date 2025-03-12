@@ -56,6 +56,11 @@ function init() {
     initUI();
     initAudio();
     
+    // Initialize power-up system if available
+    if (typeof initPowerups === 'function') {
+        initPowerups();
+    }
+    
     // Initialize pause menu
     initPauseMenu();
     
@@ -321,6 +326,110 @@ function createSun() {
     createGroundFog();
     
     console.log("Night lighting system created with moon");
+}
+
+// Add atmospheric effects like stars, fog, etc.
+function addAtmosphericEffects() {
+    console.log("Adding atmospheric effects");
+    
+    // Create stars in the night sky
+    createStars();
+    
+    // Add fireflies if they don't already exist
+    if (!window.fireflies) {
+        window.fireflies = [];
+        createFireflies();
+    }
+    
+    // Add any other atmospheric effects
+    addGroundFog();
+    
+    console.log("Atmospheric effects added");
+}
+
+// Create fireflies effect
+function createFireflies() {
+    // Number of fireflies to create
+    const firefliesCount = 30;
+    
+    // Create a texture for fireflies
+    const fireflyTexture = createFireflyTexture();
+    
+    for (let i = 0; i < firefliesCount; i++) {
+        // Create a sprite for the firefly
+        const fireflyMaterial = new THREE.SpriteMaterial({
+            map: fireflyTexture,
+            color: 0xffff80,
+            transparent: true,
+            opacity: 0.5,
+            blending: THREE.AdditiveBlending
+        });
+        
+        const firefly = new THREE.Sprite(fireflyMaterial);
+        
+        // Position fireflies within the arena
+        const radius = Math.random() * 20;
+        const angle = Math.random() * Math.PI * 2;
+        const height = Math.random() * 3 + 0.5;
+        
+        firefly.position.set(
+            Math.cos(angle) * radius,
+            height,
+            Math.sin(angle) * radius
+        );
+        
+        // Scale the fireflies (small)
+        const scale = Math.random() * 0.2 + 0.1;
+        firefly.scale.set(scale, scale, 1);
+        
+        // Add custom animation data
+        firefly.userData = {
+            originalY: firefly.position.y,
+            speed: Math.random() * 0.02 + 0.005,
+            phase: Math.random() * Math.PI * 2,
+            isBlinking: false,
+            lastBlink: Date.now(),
+            blinkInterval: Math.random() * 3000 + 2000,
+            originalOpacity: 0.5
+        };
+        
+        // Add to scene and fireflies array
+        scene.add(firefly);
+        window.fireflies.push(firefly);
+    }
+    
+    console.log("Fireflies created:", firefliesCount);
+}
+
+// Create a texture for fireflies
+function createFireflyTexture() {
+    const canvas = document.createElement('canvas');
+    canvas.width = 32;
+    canvas.height = 32;
+    const ctx = canvas.getContext('2d');
+    
+    // Draw a soft circular gradient for the firefly
+    const gradient = ctx.createRadialGradient(16, 16, 0, 16, 16, 16);
+    gradient.addColorStop(0, 'rgba(255, 255, 255, 1)');
+    gradient.addColorStop(0.2, 'rgba(255, 255, 255, 0.8)');
+    gradient.addColorStop(0.5, 'rgba(255, 255, 255, 0.4)');
+    gradient.addColorStop(1, 'rgba(255, 255, 255, 0)');
+    
+    ctx.fillStyle = gradient;
+    ctx.fillRect(0, 0, 32, 32);
+    
+    return new THREE.CanvasTexture(canvas);
+}
+
+// Add ground fog if it doesn't exist
+function addGroundFog() {
+    // Skip if ground fog already exists
+    if (window.fogMaterial) {
+        return;
+    }
+    
+    // Actually implemented in createSun function
+    console.log("Ground fog is handled in createSun");
 }
 
 // Add volumetric fog to the scene
@@ -956,7 +1065,18 @@ function startGame() {
     // Reset game state
     score = 0;
     zombieKills = 0; // Reset zombie kills
-    health = 3;
+    
+    // Reset health to MAX_HEALTH (from ui.js)
+    if (typeof window.MAX_HEALTH !== 'undefined') {
+        health = window.MAX_HEALTH;
+    } else {
+        health = 3; // Default if MAX_HEALTH is not defined
+    }
+    
+    // Reset currentHealth in UI system
+    if (typeof window.resetHealth === 'function') {
+        window.resetHealth();
+    }
     
     // Update UI
     if (typeof updateUI === 'function') {
@@ -971,6 +1091,11 @@ function startGame() {
     // Start enemy spawner
     if (typeof startEnemySpawner === 'function') {
         startEnemySpawner();
+    }
+    
+    // Clear and initialize power-ups
+    if (typeof clearPowerups === 'function') {
+        clearPowerups();
     }
     
     // Play background music
@@ -990,8 +1115,17 @@ function endGame() {
     document.body.classList.remove('game-active');
     
     // Stop enemy spawner
-    stopEnemySpawner();
+    if (typeof stopEnemySpawner === 'function') {
+        stopEnemySpawner();
+    }
     
+    // If UI has a gameOver function, use that
+    if (typeof window.gameOver === 'function') {
+        window.gameOver();
+        return; // Exit early as UI.js will handle the rest
+    }
+    
+    // Default game over handling (fallback if UI's gameOver isn't available)
     // Show game over screen
     const gameOverScreen = document.getElementById('game-over');
     if (gameOverScreen) {
@@ -1013,7 +1147,13 @@ function endGame() {
 // Update game state
 function updateGameState() {
     // Check if player is dead
-    if (health <= 0) {
+    if (typeof window.currentHealth !== 'undefined') {
+        // Use currentHealth from UI system if available
+        if (window.currentHealth <= 0) {
+            endGame();
+        }
+    } else if (health <= 0) {
+        // Fallback to local health variable
         endGame();
     }
 }
@@ -1247,7 +1387,7 @@ function createNoiseData(width, height) {
     return blurredData;
 }
 
-// Create a procedural tree bark texture
+// Create a procedural bark texture
 function createBarkTexture() {
     const canvas = document.createElement('canvas');
     canvas.width = 256;
@@ -1398,201 +1538,6 @@ function createLeafTexture() {
     return texture;
 }
 
-// Add atmospheric effects for night scene
-function addAtmosphericEffects() {
-    // Create stars for night sky
-    createStars();
-    
-    // Add fireflies
-    createFireflies();
-    
-    console.log("Atmospheric effects added");
-}
-
-// Create fireflies for night atmosphere
-function createFireflies() {
-    const fireflyCount = 30; // Reduced from 100 to 30
-    
-    // Create firefly texture
-    const fireflyCanvas = document.createElement('canvas');
-    fireflyCanvas.width = 32;
-    fireflyCanvas.height = 32;
-    const ctx = fireflyCanvas.getContext('2d');
-    
-    // Draw firefly glow - more subtle
-    const gradient = ctx.createRadialGradient(16, 16, 0, 16, 16, 16);
-    gradient.addColorStop(0, 'rgba(200, 200, 100, 0.8)'); // Less bright
-    gradient.addColorStop(0.2, 'rgba(200, 200, 80, 0.6)'); // Less bright
-    gradient.addColorStop(0.5, 'rgba(150, 200, 50, 0.3)'); // Less bright
-    gradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
-    
-    ctx.fillStyle = gradient;
-    ctx.fillRect(0, 0, 32, 32);
-    
-    const fireflyTexture = new THREE.CanvasTexture(fireflyCanvas);
-    
-    // Create firefly sprites
-    for (let i = 0; i < fireflyCount; i++) {
-        const fireflyMaterial = new THREE.SpriteMaterial({
-            map: fireflyTexture,
-            transparent: true,
-            opacity: 0.5, // Reduced from 0.8 to 0.5
-            blending: THREE.AdditiveBlending // Additive blending for glow effect
-        });
-        
-        const firefly = new THREE.Sprite(fireflyMaterial);
-        
-        // Random position in the scene - keep them more to the edges
-        const angle = Math.random() * Math.PI * 2;
-        const radius = Math.random() * 20 + 15; // Between 15-35 units from center (more at edges)
-        const height = Math.random() * 2 + 1; // Between 1-3 units high
-        
-        firefly.position.set(
-            Math.cos(angle) * radius,
-            height,
-            Math.sin(angle) * radius
-        );
-        
-        // Random scale for different firefly sizes - smaller overall
-        const scale = Math.random() * 0.2 + 0.1; // Reduced size
-        firefly.scale.set(scale, scale, 1);
-        
-        // Add animation data
-        firefly.userData = {
-            originalY: height,
-            speed: Math.random() * 0.005 + 0.002, // Slower movement
-            phase: Math.random() * Math.PI * 2,
-            blinkSpeed: Math.random() * 0.05 + 0.02, // Slower blinking
-            lastBlink: Date.now(),
-            blinkInterval: Math.random() * 5000 + 3000 // Longer intervals between blinks (3-8 seconds)
-        };
-        
-        scene.add(firefly);
-        
-        // Add to a global array for animation
-        if (!window.fireflies) window.fireflies = [];
-        window.fireflies.push(firefly);
-    }
-    
-    console.log("Fireflies created (reduced quantity)");
-}
-
-// Create stars for the night sky
-function createStars() {
-    // Create a star field with many small bright points
-    const starCount = 1000;
-    const starGeometry = new THREE.BufferGeometry();
-    const starPositions = [];
-    const starColors = [];
-    
-    // Generate random star positions in a dome above the scene
-    for (let i = 0; i < starCount; i++) {
-        // Use spherical distribution for stars
-        const theta = Math.random() * Math.PI * 2; // Around
-        const phi = Math.random() * Math.PI * 0.5; // Above horizon only
-        const radius = 300 + Math.random() * 200; // Far away
-        
-        // Convert spherical to cartesian coordinates
-        const x = radius * Math.sin(phi) * Math.cos(theta);
-        const y = radius * Math.cos(phi); // Up
-        const z = radius * Math.sin(phi) * Math.sin(theta);
-        
-        starPositions.push(x, y, z);
-        
-        // Vary star colors slightly (mostly white with hints of blue/yellow)
-        const colorChoice = Math.random();
-        if (colorChoice > 0.9) {
-            // Blue-ish stars
-            starColors.push(0.8, 0.9, 1.0);
-        } else if (colorChoice > 0.8) {
-            // Yellow-ish stars
-            starColors.push(1.0, 0.9, 0.7);
-        } else {
-            // White stars with varying brightness
-            const brightness = 0.8 + Math.random() * 0.2;
-            starColors.push(brightness, brightness, brightness);
-        }
-    }
-    
-    // Add positions and colors to the geometry
-    starGeometry.setAttribute('position', new THREE.Float32BufferAttribute(starPositions, 3));
-    starGeometry.setAttribute('color', new THREE.Float32BufferAttribute(starColors, 3));
-    
-    // Create material for stars
-    const starMaterial = new THREE.PointsMaterial({
-        size: 0.7,
-        vertexColors: true,
-        transparent: true,
-        opacity: 0.8,
-        sizeAttenuation: false // Stars don't get smaller with distance
-    });
-    
-    // Create the star field
-    const stars = new THREE.Points(starGeometry, starMaterial);
-    scene.add(stars);
-    
-    // Add a few brighter stars with glow
-    for (let i = 0; i < 20; i++) {
-        // Random position in the sky dome
-        const theta = Math.random() * Math.PI * 2;
-        const phi = Math.random() * Math.PI * 0.4; // Higher in the sky
-        const radius = 290;
-        
-        const x = radius * Math.sin(phi) * Math.cos(theta);
-        const y = radius * Math.cos(phi);
-        const z = radius * Math.sin(phi) * Math.sin(theta);
-        
-        // Create a sprite for the bright star
-        const starSprite = new THREE.Sprite(
-            new THREE.SpriteMaterial({
-                map: createStarTexture(),
-                color: 0xFFFFFF,
-                transparent: true,
-                opacity: 0.8,
-                blending: THREE.AdditiveBlending
-            })
-        );
-        
-        starSprite.position.set(x, y, z);
-        starSprite.scale.set(5, 5, 1);
-        
-        // Add animation data for twinkling
-        starSprite.userData = {
-            originalOpacity: 0.8,
-            twinkleSpeed: Math.random() * 0.002 + 0.001,
-            twinklePhase: Math.random() * Math.PI * 2
-        };
-        
-        scene.add(starSprite);
-        
-        // Add to a global array for animation
-        if (!window.brightStars) window.brightStars = [];
-        window.brightStars.push(starSprite);
-    }
-    
-    console.log("Stars created for night sky");
-}
-
-// Create a texture for bright stars with glow
-function createStarTexture() {
-    const canvas = document.createElement('canvas');
-    canvas.width = 32;
-    canvas.height = 32;
-    const ctx = canvas.getContext('2d');
-    
-    // Draw star glow
-    const gradient = ctx.createRadialGradient(16, 16, 0, 16, 16, 16);
-    gradient.addColorStop(0, 'rgba(255, 255, 255, 1)');
-    gradient.addColorStop(0.2, 'rgba(255, 255, 255, 0.8)');
-    gradient.addColorStop(0.5, 'rgba(200, 220, 255, 0.4)');
-    gradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
-    
-    ctx.fillStyle = gradient;
-    ctx.fillRect(0, 0, 32, 32);
-    
-    return new THREE.CanvasTexture(canvas);
-}
-
 // Initialize the game when the page loads
 window.addEventListener('load', () => {
     init();
@@ -1620,4 +1565,4 @@ window.addEventListener('load', () => {
         const url = `${window.location.href.split('?')[0]}?score=${score}`;
         window.open(`https://twitter.com/intent/tweet?text=I killed ${score} zombies in Zombie Survival! Can you survive longer? Try it: ${url}`);
     });
-}); 
+});

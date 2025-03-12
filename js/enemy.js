@@ -73,11 +73,21 @@ function spawnEnemyWave() {
     // Calculate number of enemies (capped at MAX_ENEMIES)
     const enemyCount = Math.min(3 + Math.floor(waveNumber / 2), MAX_ENEMIES);
     
+    // Clear any remaining power-ups from previous wave
+    if (typeof clearPowerups === 'function') {
+        clearPowerups();
+    }
+    
     // Spawn enemies with delay
     for (let i = 0; i < enemyCount; i++) {
         setTimeout(() => {
             if (enemies.length < MAX_ENEMIES) {
                 spawnEnemy();
+                
+                // Chance to spawn a power-up with each enemy
+                if (typeof spawnRandomPowerup === 'function' && i % 3 === 0) {
+                    spawnRandomPowerup(waveNumber);
+                }
             }
         }, i * 1000);
     }
@@ -360,6 +370,16 @@ function hitEnemy(enemy) {
 function updateEnemies() {
     const now = Date.now();
     updateParticles();
+    
+    // Also update power-ups if the function exists
+    if (typeof updatePowerups === 'function') {
+        updatePowerups();
+    }
+    
+    // Occasionally try to spawn a power-up during the wave
+    if (waveInProgress && typeof spawnRandomPowerup === 'function' && Math.random() < 0.001) {
+        spawnRandomPowerup(waveNumber);
+    }
     
     for (let i = enemies.length - 1; i >= 0; i--) {
         const enemy = enemies[i];
@@ -690,6 +710,18 @@ function destroyEnemy(enemy) {
     // Update zombie kill count
     if (typeof updateZombieKills === 'function') {
         updateZombieKills();
+    }
+    
+    // Small chance to spawn a power-up where enemy died
+    if (typeof spawnRandomPowerup === 'function' && Math.random() < 0.1) {
+        // Clone position but keep it on the ground
+        const powerupPos = enemy.mesh.position.clone();
+        powerupPos.y = 0;
+        
+        // Check if position is valid for a power-up
+        if (typeof isPositionClearOfObstacles === 'function' && isPositionClearOfObstacles(powerupPos)) {
+            spawnRandomPowerup(waveNumber);
+        }
     }
     
     // Update global reference
