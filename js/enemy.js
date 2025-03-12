@@ -711,9 +711,9 @@ function destroyEnemy(enemy) {
     // Create dismemberment effect - break zombie into pieces
     createDismembermentEffect(enemy);
     
-    // Play explosion sound
+    // Play zombie death sound - use zombiedeath.wav instead of explode
     if (typeof playSound === 'function') {
-        playSound('explode');
+        playSound('zombiedeath');
     }
     
     // Remove from scene
@@ -1065,11 +1065,6 @@ function updateParticles() {
                 
                 // Create blood splatter on ground if it's a dismembered part
                 createGroundBloodSplatter(particle.mesh.position);
-                
-                // Play impact sound
-                if (typeof playSound === 'function' && Math.random() < 0.3) {
-                    playSound('hit');
-                }
             } else {
                 // Regular particles bounce more
                 particle.velocity.y = -particle.velocity.y * 0.5;
