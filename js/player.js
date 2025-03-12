@@ -172,7 +172,7 @@ function debugWeaponVisibility() {
 
 // Create weapon model (pistol and hand)
 function createWeaponModel() {
-    console.log("WEAPON DEBUG: Creating scene-based weapon model with smooth physics");
+    console.log("WEAPON DEBUG: Creating scene-based weapon model with fixed position");
     
     // Remove HTML overlay
     let existingOverlay = document.getElementById('weapon-overlay');
@@ -193,85 +193,134 @@ function createWeaponModel() {
     // Create a group to hold the weapon
     weaponModel = new THREE.Group();
     
-    // NEW APPROACH: Ultra-visible weapon with emissive materials
+    // NEW REALISTIC WEAPON DESIGN - SMALLER AND MORE DETAILED
 
-    // Main body - RED box with emissive properties
-    const bodyGeo = new THREE.BoxGeometry(0.4, 0.2, 0.6);
+    // Main body - Black metal pistol body
+    const bodyGeo = new THREE.BoxGeometry(0.24, 0.12, 0.4); // 40% smaller
     const bodyMat = new THREE.MeshStandardMaterial({ 
-        color: 0xFF0000,
-        emissive: 0xFF0000,
-        emissiveIntensity: 1.0,
-        roughness: 0.5,
+        color: 0x202020, // Dark gunmetal
+        emissive: 0x000000,
+        roughness: 0.3,
         metalness: 0.8
     });
     const body = new THREE.Mesh(bodyGeo, bodyMat);
     body.position.set(0, 0, 0);
     weaponModel.add(body);
     
-    // Barrel - BLUE cylinder with emissive properties
-    const barrelGeo = new THREE.CylinderGeometry(0.05, 0.05, 0.8);
-    const barrelMat = new THREE.MeshStandardMaterial({ 
-        color: 0x00FFFF,
-        emissive: 0x00FFFF, 
-        emissiveIntensity: 1.0,
-        roughness: 0.3,
+    // Slide - Top part of pistol
+    const slideGeo = new THREE.BoxGeometry(0.22, 0.06, 0.36);
+    const slideMat = new THREE.MeshStandardMaterial({ 
+        color: 0x303030, // Slightly lighter than body
+        roughness: 0.4,
         metalness: 0.9
+    });
+    const slide = new THREE.Mesh(slideGeo, slideMat);
+    slide.position.set(0, 0.09, -0.02);
+    weaponModel.add(slide);
+    
+    // Barrel - Dark metal cylinder
+    const barrelGeo = new THREE.CylinderGeometry(0.02, 0.02, 0.5); // Thinner barrel
+    const barrelMat = new THREE.MeshStandardMaterial({ 
+        color: 0x101010, // Very dark metal
+        roughness: 0.2,
+        metalness: 1.0
     });
     const barrel = new THREE.Mesh(barrelGeo, barrelMat);
     barrel.rotation.x = Math.PI / 2; // Rotate to point forward
-    barrel.position.set(0, 0, -0.5);
+    barrel.position.set(0, 0.03, -0.3);
     weaponModel.add(barrel);
     
-    // Handle - YELLOW box with emissive properties
-    const handleGeo = new THREE.BoxGeometry(0.2, 0.4, 0.2);
+    // Handle - Textured grip
+    const handleGeo = new THREE.BoxGeometry(0.14, 0.25, 0.15); // Thinner handle
     const handleMat = new THREE.MeshStandardMaterial({ 
-        color: 0xFFFF00,
-        emissive: 0xFFFF00,
-        emissiveIntensity: 1.0,
-        roughness: 0.7,
-        metalness: 0.5
-    });
-    const handle = new THREE.Mesh(handleGeo, handleMat);
-    handle.position.set(0, -0.3, 0);
-    weaponModel.add(handle);
-    
-    // Add a GREEN sphere as a sight
-    const sightGeo = new THREE.SphereGeometry(0.05);
-    const sightMat = new THREE.MeshStandardMaterial({ 
-        color: 0x00FF00,
-        emissive: 0x00FF00,
-        emissiveIntensity: 1.0,
-        roughness: 0.2,
-        metalness: 0.8
-    });
-    const sight = new THREE.Mesh(sightGeo, sightMat);
-    sight.position.set(0, 0.15, 0);
-    weaponModel.add(sight);
-    
-    // Add a hand (PINK cube)
-    const handGeo = new THREE.BoxGeometry(0.3, 0.3, 0.3);
-    const handMat = new THREE.MeshStandardMaterial({ 
-        color: 0xFF00FF,
-        emissive: 0xFF00FF,
-        emissiveIntensity: 0.8,
-        roughness: 1.0,
+        color: 0x1A0A00, // Dark wood color
+        roughness: 0.8,
         metalness: 0.0
     });
-    const hand = new THREE.Mesh(handGeo, handMat);
-    hand.position.set(0, -0.5, 0.2);
-    weaponModel.add(hand);
+    const handle = new THREE.Mesh(handleGeo, handleMat);
+    handle.position.set(0, -0.18, 0.02);
+    weaponModel.add(handle);
     
-    // Create visible marker at the barrel tip where bullets come from
-    const tipMarkerGeo = new THREE.SphereGeometry(0.05);
+    // Trigger guard
+    const guardGeo = new THREE.TorusGeometry(0.04, 0.01, 8, 12, Math.PI);
+    const guardMat = new THREE.MeshStandardMaterial({ 
+        color: 0x202020,
+        roughness: 0.3,
+        metalness: 0.7
+    });
+    const guard = new THREE.Mesh(guardGeo, guardMat);
+    guard.rotation.x = Math.PI / 2;
+    guard.position.set(0, -0.06, 0.02);
+    weaponModel.add(guard);
+    
+    // Trigger
+    const triggerGeo = new THREE.BoxGeometry(0.02, 0.06, 0.02);
+    const triggerMat = new THREE.MeshStandardMaterial({ 
+        color: 0x505050,
+        roughness: 0.5,
+        metalness: 0.6
+    });
+    const trigger = new THREE.Mesh(triggerGeo, triggerMat);
+    trigger.position.set(0, -0.08, 0.02);
+    weaponModel.add(trigger);
+    
+    // Sights - Front
+    const frontSightGeo = new THREE.BoxGeometry(0.01, 0.02, 0.01);
+    const sightMat = new THREE.MeshStandardMaterial({ 
+        color: 0xFFFFFF, // White sight dot
+        roughness: 0.2,
+        metalness: 0.0
+    });
+    const frontSight = new THREE.Mesh(frontSightGeo, sightMat);
+    frontSight.position.set(0, 0.12, -0.16);
+    weaponModel.add(frontSight);
+    
+    // Sights - Rear
+    const rearSightGeo = new THREE.BoxGeometry(0.06, 0.015, 0.01);
+    const rearSight = new THREE.Mesh(rearSightGeo, bodyMat);
+    rearSight.position.set(0, 0.12, 0.14);
+    weaponModel.add(rearSight);
+    
+    // Add a small hand model (more realistic)
+    const handGroup = new THREE.Group();
+    
+    // Hand base - flesh colored
+    const handBaseGeo = new THREE.BoxGeometry(0.12, 0.04, 0.16);
+    const handMat = new THREE.MeshStandardMaterial({ 
+        color: 0xE0C8B0, // Flesh color
+        roughness: 0.9,
+        metalness: 0.0
+    });
+    const handBase = new THREE.Mesh(handBaseGeo, handMat);
+    handBase.position.set(0, -0.3, 0.08);
+    handGroup.add(handBase);
+    
+    // Thumb
+    const thumbGeo = new THREE.BoxGeometry(0.03, 0.08, 0.03);
+    const thumb = new THREE.Mesh(thumbGeo, handMat);
+    thumb.position.set(-0.07, -0.27, 0.08);
+    thumb.rotation.z = -0.3;
+    handGroup.add(thumb);
+    
+    // Fingers wrapped around handle
+    const fingersGeo = new THREE.BoxGeometry(0.14, 0.06, 0.04);
+    const fingers = new THREE.Mesh(fingersGeo, handMat);
+    fingers.position.set(0, -0.27, 0.02);
+    handGroup.add(fingers);
+    
+    // Add hand to weapon
+    weaponModel.add(handGroup);
+    
+    // Very small muzzle marker (almost invisible in normal play)
+    const tipMarkerGeo = new THREE.SphereGeometry(0.01);
     const tipMarkerMat = new THREE.MeshStandardMaterial({ 
-        color: 0xFFFF00,
-        emissive: 0xFFFF00,
-        emissiveIntensity: 1.0,
+        color: 0xFFFFFF,
+        emissive: 0x111111,
         transparent: true,
-        opacity: 0.9
+        opacity: 0.3
     });
     const tipMarker = new THREE.Mesh(tipMarkerGeo, tipMarkerMat);
-    tipMarker.position.set(0, 0, -0.9);
+    tipMarker.position.set(0, 0.03, -0.55);
     weaponModel.add(tipMarker);
     
     // Disable frustum culling to ensure it's always rendered
@@ -284,28 +333,32 @@ function createWeaponModel() {
         }
     });
     
+    // Scale down the entire weapon to make it smaller
+    weaponModel.scale.set(0.8, 0.8, 0.8);
+    
     // Add the weapon to the scene
     scene.add(weaponModel);
     
-    // Create a special light just for the weapon
-    const weaponLight = new THREE.PointLight(0xFFFFFF, 1, 5);
-    weaponLight.position.set(0, 0, 0);
+    // Create a subtle light just for the weapon - much less intense
+    const weaponLight = new THREE.PointLight(0xFFFFFF, 0.5, 3);
+    weaponLight.position.set(0, 0.2, -0.3);
     weaponModel.add(weaponLight);
     
     // Initialize physics system with current camera position
     weaponPhysics.lastTime = Date.now();
+    weaponPhysics.useFixedPosition = true; // Ensure we're using fixed position
     
     // Get initial camera vectors
     const cameraDirection = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
     const cameraRight = new THREE.Vector3(1, 0, 0).applyQuaternion(camera.quaternion);
     const cameraUp = new THREE.Vector3(0, 1, 0).applyQuaternion(camera.quaternion);
     
-    // Calculate initial position
+    // Calculate initial position - position it slightly further to the right and down
     const initialPos = new THREE.Vector3();
     initialPos.copy(camera.position);
-    initialPos.add(cameraDirection.clone().multiplyScalar(0.8));
-    initialPos.add(cameraUp.clone().multiplyScalar(-0.3));
-    initialPos.add(cameraRight.clone().multiplyScalar(0.3));
+    initialPos.add(cameraDirection.clone().multiplyScalar(0.6)); // Closer to camera (was 0.8)
+    initialPos.add(cameraUp.clone().multiplyScalar(-0.25)); // Slightly higher (was -0.3)
+    initialPos.add(cameraRight.clone().multiplyScalar(0.2)); // More centered (was 0.3)
     
     // Initialize physics values to prevent initial jump
     weaponPhysics.targetPosition.copy(initialPos);
@@ -320,7 +373,7 @@ function createWeaponModel() {
     weaponModel.position.copy(initialPos);
     weaponModel.quaternion.copy(camera.quaternion);
     
-    console.log("WEAPON DEBUG: Added weapon to scene with physics system");
+    console.log("WEAPON DEBUG: Added weapon to scene with fixed position");
     
     return weaponModel;
 }
@@ -333,24 +386,21 @@ function updateWeaponPosition() {
         return;
     }
     
-    // Calculate time delta for smooth, frame-rate independent movement
-    const now = Date.now();
-    const deltaTime = Math.min((now - weaponPhysics.lastTime) / 1000, 0.1); // Cap at 0.1 seconds
-    weaponPhysics.lastTime = now;
+    // ANTI-STUTTER FIX: Skip weapon updates when game is paused
+    if (typeof gamePaused !== 'undefined' && gamePaused) {
+        return;
+    }
     
-    // Skip if delta is too small (prevents judder)
-    if (deltaTime < 0.001) return;
-    
-    // Get camera vectors for positioning
+    // Get camera vectors for positioning - optimized to reduce calculations
     const cameraDirection = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
     const cameraRight = new THREE.Vector3(1, 0, 0).applyQuaternion(camera.quaternion);
     const cameraUp = new THREE.Vector3(0, 1, 0).applyQuaternion(camera.quaternion);
     
-    // Base offset from camera
+    // Base offset from camera - adjusted for smaller weapon
     const weaponOffset = {
-        forward: 0.8,
-        down: 0.3,
-        right: 0.3
+        forward: 0.6,  // Closer to camera (was 0.8)
+        down: 0.25,    // Slightly higher (was 0.3)
+        right: 0.2     // More centered (was 0.3)
     };
     
     // Calculate the target position in world space
@@ -360,97 +410,34 @@ function updateWeaponPosition() {
     targetPos.add(cameraUp.clone().multiplyScalar(-weaponOffset.down));
     targetPos.add(cameraRight.clone().multiplyScalar(weaponOffset.right));
     
-    // Add simplified bobbing when moving - REDUCED bobbing amount by 80%
-    if (moveState.forward || moveState.backward || moveState.left || moveState.right) {
-        weaponBobTime += deltaTime * 10; // Consistent bob speed regardless of frame rate
-        
-        // Extremely minimal bob with greatly reduced amplitude
-        const bobY = Math.sin(weaponBobTime * 3) * 0.003; // Reduced from 0.015 to 0.003
-        const bobX = Math.cos(weaponBobTime * 1.5) * 0.0016; // Reduced from 0.008 to 0.0016
-        
-        // Apply bob to target position
-        targetPos.add(cameraUp.clone().multiplyScalar(bobY));
-        targetPos.add(cameraRight.clone().multiplyScalar(bobX));
-    }
+    // COMPLETELY DISABLE BOBBING FOR ABSOLUTE STABILITY
+    // We're removing all bobbing to eliminate stuttering
     
-    // Set target rotation to match camera
+    // Set target rotation to match camera exactly
     const targetQuaternion = camera.quaternion.clone();
     
-    // Apply sway based on mouse movement - DISABLED
-    // if (window.lastX || window.lastY) {
-    //     // Create a very small rotation for sway
-    //     const swayX = -window.lastX * 0.0005; // Reduced from 0.001
-    //     const swayY = -window.lastY * 0.0005; // Reduced from 0.001
-    //     
-    //     const swayQuat = new THREE.Quaternion()
-    //         .setFromEuler(new THREE.Euler(swayY, swayX, 0, 'XYZ'));
-    //     
-    //     // Apply small sway to target rotation
-    //     targetQuaternion.multiply(swayQuat);
-    // }
+    // ELIMINATE ALL SWAY - Already disabled but making it clearer
     
-    // Apply recoil effect when shooting - REDUCED by 50%
+    // Apply very minimal recoil effect when shooting
+    const now = Date.now();
     const timeSinceShot = now - lastShootTime;
     if (timeSinceShot < 200) {
-        const recoilProgress = 1 - (timeSinceShot / 200); // 0 to 1 scale of recoil effect
-        const recoilCurve = Math.sin(recoilProgress * Math.PI); // Smooth curve from 0->1->0
-        const recoilAmount = 0.015 * recoilCurve; // Reduced from 0.03 to 0.015
+        const recoilProgress = 1 - (timeSinceShot / 200);
+        const recoilCurve = Math.sin(recoilProgress * Math.PI); 
+        const recoilAmount = 0.01 * recoilCurve; // Extremely minimal recoil (was 0.015)
         
-        // Move backward slightly
+        // Very slight backward movement
         targetPos.add(cameraDirection.clone().multiplyScalar(-recoilAmount));
         
-        // Rotate upward slightly for recoil
+        // Very slight upward rotation
         const recoilQuat = new THREE.Quaternion()
             .setFromEuler(new THREE.Euler(-recoilAmount, 0, 0, 'XYZ'));
         targetQuaternion.multiply(recoilQuat);
     }
     
-    // Save target position and rotation
-    weaponPhysics.targetPosition.copy(targetPos);
-    weaponPhysics.targetRotation.copy(targetQuaternion);
-    
-    // FOR FIXED POSITION: directly update without physics
-    if (weaponPhysics.useFixedPosition) {
-        // Set position and rotation directly without physics
-        weaponModel.position.copy(targetPos);
-        weaponModel.quaternion.copy(targetQuaternion);
-    } else {
-        // Apply spring physics for position (only used if not in fixed position mode)
-        applySpringPhysics(deltaTime);
-        
-        // Update the actual weapon model with the smoothed physics values
-        weaponModel.position.copy(weaponPhysics.currentPosition);
-        weaponModel.quaternion.copy(weaponPhysics.currentRotation);
-    }
-}
-
-// Apply spring physics for smooth movement - Only used when not in fixed position mode
-function applySpringPhysics(deltaTime) {
-    // Skip if using fixed position mode
-    if (weaponPhysics.useFixedPosition) return;
-    
-    // Physics for position (spring dynamics)
-    // Calculate spring force = springStrength * (targetPos - currentPos) - damping * velocity
-    const positionDelta = new THREE.Vector3().subVectors(
-        weaponPhysics.targetPosition, 
-        weaponPhysics.currentPosition
-    );
-    
-    // Spring force calculation
-    const positionSpringForce = positionDelta.clone().multiplyScalar(weaponPhysics.springStrength);
-    const positionDampingForce = weaponPhysics.positionVelocity.clone().multiplyScalar(weaponPhysics.damping);
-    const positionNetForce = positionSpringForce.clone().sub(positionDampingForce);
-    
-    // Apply force to velocity
-    weaponPhysics.positionVelocity.add(positionNetForce.multiplyScalar(deltaTime));
-    
-    // Apply velocity to position
-    weaponPhysics.currentPosition.add(weaponPhysics.positionVelocity.clone().multiplyScalar(deltaTime));
-    
-    // Physics for rotation (smoother approach using quaternion slerp)
-    // For rotation, we'll use spherical interpolation (slerp) which is better for rotations
-    const slerpFactor = Math.min(deltaTime * 10, 1); // Smooth factor for rotation
-    weaponPhysics.currentRotation.slerp(weaponPhysics.targetRotation, slerpFactor);
+    // Set position and rotation directly without physics
+    weaponModel.position.copy(targetPos);
+    weaponModel.quaternion.copy(targetQuaternion);
 }
 
 // Handle key down events
@@ -578,6 +565,14 @@ function onPointerLockChange() {
                 togglePause();
             }
         }
+    }
+}
+
+// FIX for pause menu - Add this new function to ensure pointer lock on resume
+function resumePointerLock() {
+    if (gameActive && !gamePaused) {
+        // Request pointer lock again
+        document.body.requestPointerLock();
     }
 }
 
@@ -821,11 +816,10 @@ function shoot() {
         }
     }
     
-    const bulletGeo = new THREE.CylinderGeometry(0.05, 0.05, 0.3);
+    const bulletGeo = new THREE.CylinderGeometry(0.03, 0.03, 0.2); // Smaller bullet
     const bulletMat = new THREE.MeshBasicMaterial({ 
-        color: 0xFFD700,
-        emissive: 0xFFD700,
-        emissiveIntensity: 1.0
+        color: 0xD4AF37, // More realistic gold color for bullet
+        emissive: 0xD4AF37
     });
     const bullet = new THREE.Mesh(bulletGeo, bulletMat);
     
@@ -847,9 +841,8 @@ function shoot() {
         hitPoint.copy(camera.position).add(raycaster.ray.direction.multiplyScalar(100));
     }
     
-    // Find the barrel tip in world space
-    // The tip marker is at local position (0, 0, -0.9) in the weapon model
-    const barrelTip = new THREE.Vector3(0, 0, -0.9);
+    // Find the barrel tip in world space - adjusted position for new model
+    const barrelTip = new THREE.Vector3(0, 0.03, -0.55);
     barrelTip.applyMatrix4(weaponModel.matrixWorld);
     
     // Calculate direction from barrel tip to hit point
@@ -889,8 +882,6 @@ function shoot() {
         debugElement.innerText = `Weapon Debug: Shot fired from ${barrelTip.x.toFixed(2)}, ${barrelTip.y.toFixed(2)}, ${barrelTip.z.toFixed(2)}`;
         debugElement.style.backgroundColor = 'rgba(255,255,0,0.7)';
     }
-    
-    console.log("Shot fired from", barrelTip, "to", hitPoint);
 }
 
 // Create muzzle flash effect
@@ -1055,4 +1046,5 @@ function updateStaminaUI() {
 
 // Export functions
 window.updatePlayer = updatePlayer;
-window.shoot = shoot; 
+window.shoot = shoot;
+window.resumePointerLock = resumePointerLock; // Export the new function for pause menu 

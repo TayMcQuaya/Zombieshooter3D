@@ -756,7 +756,14 @@ function togglePause() {
         // Resume the game
         hidePauseMenu();
         document.body.classList.add('game-active');
-        document.body.requestPointerLock();
+        
+        // Use our new resumePointerLock function if available (more reliable)
+        if (typeof window.resumePointerLock === 'function') {
+            window.resumePointerLock();
+        } else {
+            document.body.requestPointerLock();
+        }
+        
         if (typeof resumeBackgroundMusic === 'function') {
             resumeBackgroundMusic();
         }
@@ -785,7 +792,14 @@ function initPauseMenu() {
             gamePaused = false;
             hidePauseMenu();
             document.body.classList.add('game-active');
-            document.body.requestPointerLock();
+            
+            // Use our new resumePointerLock function if available (more reliable)
+            if (typeof window.resumePointerLock === 'function') {
+                window.resumePointerLock();
+            } else {
+                document.body.requestPointerLock();
+            }
+            
             if (typeof resumeBackgroundMusic === 'function') {
                 resumeBackgroundMusic();
             }
