@@ -50,6 +50,31 @@ let weaponSwayAmount = 0.02;
 let weaponBobAmount = 0.03;
 let weaponBobSpeed = 5;
 
+// Weapon physics state - NEW
+const weaponPhysics = {
+    // Target and current positions (for smooth lerping)
+    targetPosition: new THREE.Vector3(),
+    currentPosition: new THREE.Vector3(),
+    
+    // Target and current rotations (for smooth lerping)
+    targetRotation: new THREE.Quaternion(),
+    currentRotation: new THREE.Quaternion(),
+    
+    // Spring physics properties
+    springStrength: 50.0,  // INCREASED from 15.0 to 50.0 for faster response
+    damping: 0.95,         // INCREASED from 0.6 to 0.95 for much less oscillation
+    
+    // Velocity vectors for spring physics
+    positionVelocity: new THREE.Vector3(),
+    rotationVelocity: new THREE.Vector3(),
+    
+    // Last frame time for delta calculation
+    lastTime: 0,
+    
+    // Fixed position mode
+    useFixedPosition: true  // NEW: toggle for using fixed position instead of physics
+};
+
 // Camera smoothing properties
 const mouseSensitivity = 0.001; // Reduced sensitivity for smoother control
 let targetRotationX = 0;
@@ -133,19 +158,21 @@ function debugWeaponVisibility() {
         return;
     }
     
-    if (!camera.children.includes(weaponModel)) {
-        debugElement.innerText = 'Weapon Debug: Weapon not attached to camera!';
+    if (!scene.children.includes(weaponModel)) {
+        debugElement.innerText = 'Weapon Debug: Weapon not in scene!';
         debugElement.style.backgroundColor = 'rgba(255,0,0,0.7)';
         return;
     }
     
-    debugElement.innerText = `Weapon Debug: Model exists at position ${weaponModel.position.x.toFixed(2)}, ${weaponModel.position.y.toFixed(2)}, ${weaponModel.position.z.toFixed(2)}`;
+    const positionMode = weaponPhysics.useFixedPosition ? "FIXED POSITION" : "PHYSICS MODE";
+    const springInfo = `Spring: strength=${weaponPhysics.springStrength}, damping=${weaponPhysics.damping}`;
+    debugElement.innerText = `Weapon Debug: ${positionMode}\nModel at position ${weaponModel.position.x.toFixed(2)}, ${weaponModel.position.y.toFixed(2)}, ${weaponModel.position.z.toFixed(2)}\n${springInfo}`;
     debugElement.style.backgroundColor = 'rgba(0,255,0,0.7)';
 }
 
 // Create weapon model (pistol and hand)
 function createWeaponModel() {
-    console.log("WEAPON DEBUG: Creating scene-based weapon model");
+    console.log("WEAPON DEBUG: Creating scene-based weapon model with smooth physics");
     
     // Remove HTML overlay
     let existingOverlay = document.getElementById('weapon-overlay');
@@ -257,7 +284,7 @@ function createWeaponModel() {
         }
     });
     
-    // KEY DIFFERENCE: Add the weapon to the scene, not to the camera
+    // Add the weapon to the scene
     scene.add(weaponModel);
     
     // Create a special light just for the weapon
@@ -265,10 +292,35 @@ function createWeaponModel() {
     weaponLight.position.set(0, 0, 0);
     weaponModel.add(weaponLight);
     
-    console.log("WEAPON DEBUG: Added weapon to scene directly");
+    // Initialize physics system with current camera position
+    weaponPhysics.lastTime = Date.now();
     
-    // Force immediate update of weapon position
-    updateWeaponPosition();
+    // Get initial camera vectors
+    const cameraDirection = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
+    const cameraRight = new THREE.Vector3(1, 0, 0).applyQuaternion(camera.quaternion);
+    const cameraUp = new THREE.Vector3(0, 1, 0).applyQuaternion(camera.quaternion);
+    
+    // Calculate initial position
+    const initialPos = new THREE.Vector3();
+    initialPos.copy(camera.position);
+    initialPos.add(cameraDirection.clone().multiplyScalar(0.8));
+    initialPos.add(cameraUp.clone().multiplyScalar(-0.3));
+    initialPos.add(cameraRight.clone().multiplyScalar(0.3));
+    
+    // Initialize physics values to prevent initial jump
+    weaponPhysics.targetPosition.copy(initialPos);
+    weaponPhysics.currentPosition.copy(initialPos);
+    weaponPhysics.positionVelocity.set(0, 0, 0);
+    
+    weaponPhysics.targetRotation.copy(camera.quaternion);
+    weaponPhysics.currentRotation.copy(camera.quaternion);
+    weaponPhysics.rotationVelocity.set(0, 0, 0);
+    
+    // Set initial position immediately
+    weaponModel.position.copy(initialPos);
+    weaponModel.quaternion.copy(camera.quaternion);
+    
+    console.log("WEAPON DEBUG: Added weapon to scene with physics system");
     
     return weaponModel;
 }
@@ -281,71 +333,124 @@ function updateWeaponPosition() {
         return;
     }
     
-    // KEY DIFFERENCE: Since the weapon is in the scene, not attached to the camera,
-    // we need to position it relative to the camera's position and orientation
+    // Calculate time delta for smooth, frame-rate independent movement
+    const now = Date.now();
+    const deltaTime = Math.min((now - weaponPhysics.lastTime) / 1000, 0.1); // Cap at 0.1 seconds
+    weaponPhysics.lastTime = now;
     
-    // Get camera forward and up vectors
+    // Skip if delta is too small (prevents judder)
+    if (deltaTime < 0.001) return;
+    
+    // Get camera vectors for positioning
     const cameraDirection = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
     const cameraRight = new THREE.Vector3(1, 0, 0).applyQuaternion(camera.quaternion);
     const cameraUp = new THREE.Vector3(0, 1, 0).applyQuaternion(camera.quaternion);
     
-    // Position to place weapon - slightly downward and in front of camera
+    // Base offset from camera
     const weaponOffset = {
-        forward: 0.8,  // How far forward from camera
-        down: 0.3,     // How far down from camera center
-        right: 0.3     // How far right from camera center
+        forward: 0.8,
+        down: 0.3,
+        right: 0.3
     };
     
-    // Calculate the weapon position in world space
-    const weaponPos = new THREE.Vector3();
-    weaponPos.copy(camera.position);
-    weaponPos.add(cameraDirection.clone().multiplyScalar(weaponOffset.forward));
-    weaponPos.add(cameraUp.clone().multiplyScalar(-weaponOffset.down));
-    weaponPos.add(cameraRight.clone().multiplyScalar(weaponOffset.right));
+    // Calculate the target position in world space
+    const targetPos = new THREE.Vector3();
+    targetPos.copy(camera.position);
+    targetPos.add(cameraDirection.clone().multiplyScalar(weaponOffset.forward));
+    targetPos.add(cameraUp.clone().multiplyScalar(-weaponOffset.down));
+    targetPos.add(cameraRight.clone().multiplyScalar(weaponOffset.right));
     
-    // Apply the calculated position
-    weaponModel.position.copy(weaponPos);
-    
-    // Apply camera rotation to weapon (so it points where camera points)
-    weaponModel.quaternion.copy(camera.quaternion);
-    
-    // Add bobbing effect when moving
+    // Add simplified bobbing when moving - REDUCED bobbing amount by 80%
     if (moveState.forward || moveState.backward || moveState.left || moveState.right) {
-        weaponBobTime += 0.1;
-        const bobY = Math.sin(weaponBobTime * weaponBobSpeed) * 0.02;
-        const bobX = Math.cos(weaponBobTime * weaponBobSpeed * 0.5) * 0.01;
+        weaponBobTime += deltaTime * 10; // Consistent bob speed regardless of frame rate
         
-        // Apply bob by moving along camera's right and up vectors
-        weaponModel.position.add(cameraUp.clone().multiplyScalar(bobY));
-        weaponModel.position.add(cameraRight.clone().multiplyScalar(bobX));
+        // Extremely minimal bob with greatly reduced amplitude
+        const bobY = Math.sin(weaponBobTime * 3) * 0.003; // Reduced from 0.015 to 0.003
+        const bobX = Math.cos(weaponBobTime * 1.5) * 0.0016; // Reduced from 0.008 to 0.0016
+        
+        // Apply bob to target position
+        targetPos.add(cameraUp.clone().multiplyScalar(bobY));
+        targetPos.add(cameraRight.clone().multiplyScalar(bobX));
     }
     
-    // Apply weapon sway based on mouse movement
-    if (window.lastX || window.lastY) {
-        // Create a quaternion for the sway rotation
-        const swayX = -window.lastX * 0.001;
-        const swayY = -window.lastY * 0.001;
-        
-        const swayQuat = new THREE.Quaternion()
-            .setFromEuler(new THREE.Euler(swayY, swayX, 0, 'XYZ'));
-        
-        // Apply sway to weapon rotation
-        weaponModel.quaternion.multiply(swayQuat);
-    }
+    // Set target rotation to match camera
+    const targetQuaternion = camera.quaternion.clone();
     
-    // Add recoil effect when shooting
-    const timeSinceShot = Date.now() - lastShootTime;
+    // Apply sway based on mouse movement - DISABLED
+    // if (window.lastX || window.lastY) {
+    //     // Create a very small rotation for sway
+    //     const swayX = -window.lastX * 0.0005; // Reduced from 0.001
+    //     const swayY = -window.lastY * 0.0005; // Reduced from 0.001
+    //     
+    //     const swayQuat = new THREE.Quaternion()
+    //         .setFromEuler(new THREE.Euler(swayY, swayX, 0, 'XYZ'));
+    //     
+    //     // Apply small sway to target rotation
+    //     targetQuaternion.multiply(swayQuat);
+    // }
+    
+    // Apply recoil effect when shooting - REDUCED by 50%
+    const timeSinceShot = now - lastShootTime;
     if (timeSinceShot < 200) {
-        const recoilAmount = 0.05 * (1 - timeSinceShot / 200);
+        const recoilProgress = 1 - (timeSinceShot / 200); // 0 to 1 scale of recoil effect
+        const recoilCurve = Math.sin(recoilProgress * Math.PI); // Smooth curve from 0->1->0
+        const recoilAmount = 0.015 * recoilCurve; // Reduced from 0.03 to 0.015
         
-        // Move backward along camera direction for recoil
-        weaponModel.position.add(cameraDirection.clone().multiplyScalar(-recoilAmount));
+        // Move backward slightly
+        targetPos.add(cameraDirection.clone().multiplyScalar(-recoilAmount));
         
-        // Rotate upward for recoil
+        // Rotate upward slightly for recoil
         const recoilQuat = new THREE.Quaternion()
             .setFromEuler(new THREE.Euler(-recoilAmount, 0, 0, 'XYZ'));
-        weaponModel.quaternion.multiply(recoilQuat);
+        targetQuaternion.multiply(recoilQuat);
     }
+    
+    // Save target position and rotation
+    weaponPhysics.targetPosition.copy(targetPos);
+    weaponPhysics.targetRotation.copy(targetQuaternion);
+    
+    // FOR FIXED POSITION: directly update without physics
+    if (weaponPhysics.useFixedPosition) {
+        // Set position and rotation directly without physics
+        weaponModel.position.copy(targetPos);
+        weaponModel.quaternion.copy(targetQuaternion);
+    } else {
+        // Apply spring physics for position (only used if not in fixed position mode)
+        applySpringPhysics(deltaTime);
+        
+        // Update the actual weapon model with the smoothed physics values
+        weaponModel.position.copy(weaponPhysics.currentPosition);
+        weaponModel.quaternion.copy(weaponPhysics.currentRotation);
+    }
+}
+
+// Apply spring physics for smooth movement - Only used when not in fixed position mode
+function applySpringPhysics(deltaTime) {
+    // Skip if using fixed position mode
+    if (weaponPhysics.useFixedPosition) return;
+    
+    // Physics for position (spring dynamics)
+    // Calculate spring force = springStrength * (targetPos - currentPos) - damping * velocity
+    const positionDelta = new THREE.Vector3().subVectors(
+        weaponPhysics.targetPosition, 
+        weaponPhysics.currentPosition
+    );
+    
+    // Spring force calculation
+    const positionSpringForce = positionDelta.clone().multiplyScalar(weaponPhysics.springStrength);
+    const positionDampingForce = weaponPhysics.positionVelocity.clone().multiplyScalar(weaponPhysics.damping);
+    const positionNetForce = positionSpringForce.clone().sub(positionDampingForce);
+    
+    // Apply force to velocity
+    weaponPhysics.positionVelocity.add(positionNetForce.multiplyScalar(deltaTime));
+    
+    // Apply velocity to position
+    weaponPhysics.currentPosition.add(weaponPhysics.positionVelocity.clone().multiplyScalar(deltaTime));
+    
+    // Physics for rotation (smoother approach using quaternion slerp)
+    // For rotation, we'll use spherical interpolation (slerp) which is better for rotations
+    const slerpFactor = Math.min(deltaTime * 10, 1); // Smooth factor for rotation
+    weaponPhysics.currentRotation.slerp(weaponPhysics.targetRotation, slerpFactor);
 }
 
 // Handle key down events
@@ -705,9 +810,6 @@ function shoot() {
         console.log("WEAPON DEBUG: Recreating weapon before shooting");
         createWeaponModel();
     }
-    
-    // Force update weapon position
-    updateWeaponPosition();
     
     // Remove oldest projectile if at max
     if (projectiles.length >= MAX_PROJECTILES) {
