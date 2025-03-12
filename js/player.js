@@ -193,33 +193,33 @@ function createWeaponModel() {
     // Create a group to hold the weapon
     weaponModel = new THREE.Group();
     
-    // NEW REALISTIC WEAPON DESIGN - SMALLER AND MORE DETAILED
+    // COMPACT WEAPON DESIGN - 50% SMALLER
 
-    // Main body - Black metal pistol body
-    const bodyGeo = new THREE.BoxGeometry(0.24, 0.12, 0.4); // 40% smaller
+    // Main body - Black metal pistol body with reduced dimensions
+    const bodyGeo = new THREE.BoxGeometry(0.16, 0.08, 0.25); // Much smaller
     const bodyMat = new THREE.MeshStandardMaterial({ 
-        color: 0x202020, // Dark gunmetal
+        color: 0x151515, // Darker gunmetal
         emissive: 0x000000,
         roughness: 0.3,
-        metalness: 0.8
+        metalness: 0.9
     });
     const body = new THREE.Mesh(bodyGeo, bodyMat);
     body.position.set(0, 0, 0);
     weaponModel.add(body);
     
     // Slide - Top part of pistol
-    const slideGeo = new THREE.BoxGeometry(0.22, 0.06, 0.36);
+    const slideGeo = new THREE.BoxGeometry(0.15, 0.04, 0.23);
     const slideMat = new THREE.MeshStandardMaterial({ 
-        color: 0x303030, // Slightly lighter than body
+        color: 0x222222, // Slightly lighter than body
         roughness: 0.4,
         metalness: 0.9
     });
     const slide = new THREE.Mesh(slideGeo, slideMat);
-    slide.position.set(0, 0.09, -0.02);
+    slide.position.set(0, 0.06, -0.01);
     weaponModel.add(slide);
     
-    // Barrel - Dark metal cylinder
-    const barrelGeo = new THREE.CylinderGeometry(0.02, 0.02, 0.5); // Thinner barrel
+    // Barrel - Dark metal cylinder - much thinner
+    const barrelGeo = new THREE.CylinderGeometry(0.008, 0.008, 0.35);
     const barrelMat = new THREE.MeshStandardMaterial({ 
         color: 0x101010, // Very dark metal
         roughness: 0.2,
@@ -227,100 +227,207 @@ function createWeaponModel() {
     });
     const barrel = new THREE.Mesh(barrelGeo, barrelMat);
     barrel.rotation.x = Math.PI / 2; // Rotate to point forward
-    barrel.position.set(0, 0.03, -0.3);
+    barrel.position.set(0, 0.02, -0.18);
     weaponModel.add(barrel);
     
-    // Handle - Textured grip
-    const handleGeo = new THREE.BoxGeometry(0.14, 0.25, 0.15); // Thinner handle
+    // Add slide details - ejection port
+    const ejectionPortGeo = new THREE.BoxGeometry(0.05, 0.01, 0.06);
+    const ejectionPort = new THREE.Mesh(ejectionPortGeo, slideMat);
+    ejectionPort.position.set(0.05, 0.065, 0);
+    weaponModel.add(ejectionPort);
+    
+    // Handle - Textured grip with wood texture
+    const handleGeo = new THREE.BoxGeometry(0.08, 0.16, 0.1);
     const handleMat = new THREE.MeshStandardMaterial({ 
-        color: 0x1A0A00, // Dark wood color
-        roughness: 0.8,
+        color: 0x2A1506, // Rich wood color
+        roughness: 0.9,
         metalness: 0.0
     });
     const handle = new THREE.Mesh(handleGeo, handleMat);
-    handle.position.set(0, -0.18, 0.02);
+    handle.position.set(0, -0.12, 0.02);
     weaponModel.add(handle);
     
-    // Trigger guard
-    const guardGeo = new THREE.TorusGeometry(0.04, 0.01, 8, 12, Math.PI);
+    // Handle texture details - wood grain lines
+    for (let i = 0; i < 3; i++) {
+        const grainGeo = new THREE.BoxGeometry(0.082, 0.008, 0.102);
+        const grainMat = new THREE.MeshStandardMaterial({ 
+            color: 0x170A00, // Darker wood grain
+            roughness: 0.9,
+            metalness: 0.0
+        });
+        const grain = new THREE.Mesh(grainGeo, grainMat);
+        grain.position.set(0, -0.08 - (i * 0.04), 0.02);
+        weaponModel.add(grain);
+    }
+    
+    // Trigger guard - thinner and more elliptical
+    const guardGeo = new THREE.TorusGeometry(0.02, 0.004, 8, 12, Math.PI);
     const guardMat = new THREE.MeshStandardMaterial({ 
-        color: 0x202020,
+        color: 0x101010,
         roughness: 0.3,
         metalness: 0.7
     });
     const guard = new THREE.Mesh(guardGeo, guardMat);
     guard.rotation.x = Math.PI / 2;
-    guard.position.set(0, -0.06, 0.02);
+    guard.position.set(0, -0.04, 0.02);
     weaponModel.add(guard);
     
-    // Trigger
-    const triggerGeo = new THREE.BoxGeometry(0.02, 0.06, 0.02);
+    // Trigger - small
+    const triggerGeo = new THREE.BoxGeometry(0.008, 0.03, 0.008);
     const triggerMat = new THREE.MeshStandardMaterial({ 
         color: 0x505050,
         roughness: 0.5,
         metalness: 0.6
     });
     const trigger = new THREE.Mesh(triggerGeo, triggerMat);
-    trigger.position.set(0, -0.08, 0.02);
+    trigger.position.set(0, -0.05, 0.02);
     weaponModel.add(trigger);
     
-    // Sights - Front
-    const frontSightGeo = new THREE.BoxGeometry(0.01, 0.02, 0.01);
+    // Sights - Front (very small)
+    const frontSightGeo = new THREE.BoxGeometry(0.004, 0.008, 0.004);
     const sightMat = new THREE.MeshStandardMaterial({ 
         color: 0xFFFFFF, // White sight dot
         roughness: 0.2,
         metalness: 0.0
     });
     const frontSight = new THREE.Mesh(frontSightGeo, sightMat);
-    frontSight.position.set(0, 0.12, -0.16);
+    frontSight.position.set(0, 0.08, -0.11);
     weaponModel.add(frontSight);
     
-    // Sights - Rear
-    const rearSightGeo = new THREE.BoxGeometry(0.06, 0.015, 0.01);
+    // Sights - Rear (very small)
+    const rearSightGeo = new THREE.BoxGeometry(0.03, 0.006, 0.004);
     const rearSight = new THREE.Mesh(rearSightGeo, bodyMat);
-    rearSight.position.set(0, 0.12, 0.14);
+    rearSight.position.set(0, 0.08, 0.1);
     weaponModel.add(rearSight);
     
-    // Add a small hand model (more realistic)
+    // Create a realistic hand model
     const handGroup = new THREE.Group();
     
-    // Hand base - flesh colored
-    const handBaseGeo = new THREE.BoxGeometry(0.12, 0.04, 0.16);
+    // Hand materials
     const handMat = new THREE.MeshStandardMaterial({ 
-        color: 0xE0C8B0, // Flesh color
+        color: 0xE0C8B0, // Base flesh color
         roughness: 0.9,
         metalness: 0.0
     });
-    const handBase = new THREE.Mesh(handBaseGeo, handMat);
-    handBase.position.set(0, -0.3, 0.08);
-    handGroup.add(handBase);
     
-    // Thumb
-    const thumbGeo = new THREE.BoxGeometry(0.03, 0.08, 0.03);
+    const darkHandMat = new THREE.MeshStandardMaterial({ 
+        color: 0xD6BEA0, // Slightly darker flesh for shadows
+        roughness: 0.9,
+        metalness: 0.0
+    });
+    
+    // Wrist/forearm - made thicker and longer
+    const wristGeo = new THREE.CylinderGeometry(0.025, 0.03, 0.12, 8);
+    wristGeo.rotateX(Math.PI / 2);
+    const wrist = new THREE.Mesh(wristGeo, handMat);
+    wrist.position.set(0, -0.22, 0.16); // Moved back to prevent cutoff
+    handGroup.add(wrist);
+    
+    // Palm - made larger
+    const palmGeo = new THREE.SphereGeometry(0.04, 8, 6, 0, Math.PI * 2, 0, Math.PI / 2);
+    palmGeo.scale(1, 0.7, 1.3);
+    const palm = new THREE.Mesh(palmGeo, darkHandMat);
+    palm.rotation.x = Math.PI / 2;
+    palm.position.set(0, -0.19, 0.08); // Adjusted position
+    handGroup.add(palm);
+    
+    // Create thumb - larger
+    const thumbBase = new THREE.SphereGeometry(0.014, 8, 8);
+    const thumbBaseMesh = new THREE.Mesh(thumbBase, handMat);
+    thumbBaseMesh.position.set(-0.035, -0.18, 0.05);
+    handGroup.add(thumbBaseMesh);
+    
+    const thumbJoint = new THREE.SphereGeometry(0.012, 8, 8);
+    const thumbJointMesh = new THREE.Mesh(thumbJoint, handMat);
+    thumbJointMesh.position.set(-0.045, -0.17, 0.03);
+    handGroup.add(thumbJointMesh);
+    
+    const thumbGeo = new THREE.CylinderGeometry(0.012, 0.01, 0.045, 8);
     const thumb = new THREE.Mesh(thumbGeo, handMat);
-    thumb.position.set(-0.07, -0.27, 0.08);
-    thumb.rotation.z = -0.3;
+    thumb.position.set(-0.04, -0.175, 0.04);
+    thumb.rotation.x = 0.6;
+    thumb.rotation.z = -0.4;
     handGroup.add(thumb);
     
-    // Fingers wrapped around handle
-    const fingersGeo = new THREE.BoxGeometry(0.14, 0.06, 0.04);
-    const fingers = new THREE.Mesh(fingersGeo, handMat);
-    fingers.position.set(0, -0.27, 0.02);
-    handGroup.add(fingers);
+    // Create finger joints and segments - increased size and improved function
+    function createFinger(x, y, z, length, thickness, rotX, name) {
+        const fingerGroup = new THREE.Group();
+        fingerGroup.name = name;
+        
+        // Base joint - larger
+        const baseJoint = new THREE.Mesh(
+            new THREE.SphereGeometry(thickness + 0.003, 8, 8),
+            handMat
+        );
+        baseJoint.position.set(x, y, z);
+        fingerGroup.add(baseJoint);
+        
+        // First segment - thicker
+        const segment1 = new THREE.Mesh(
+            new THREE.CylinderGeometry(thickness, thickness * 0.95, length * 0.6, 8),
+            handMat
+        );
+        segment1.rotation.x = rotX;
+        segment1.position.set(x, y - (length * 0.3 * Math.sin(rotX)), z - (length * 0.3 * Math.cos(rotX)));
+        fingerGroup.add(segment1);
+        
+        // Middle joint - larger
+        const middleJoint = new THREE.Mesh(
+            new THREE.SphereGeometry(thickness * 0.95, 8, 8),
+            handMat
+        );
+        middleJoint.position.set(
+            x, 
+            y - (length * 0.6 * Math.sin(rotX)), 
+            z - (length * 0.6 * Math.cos(rotX))
+        );
+        fingerGroup.add(middleJoint);
+        
+        // Second segment - thicker
+        const segment2 = new THREE.Mesh(
+            new THREE.CylinderGeometry(thickness * 0.95, thickness * 0.9, length * 0.4, 8),
+            handMat
+        );
+        segment2.rotation.x = rotX + 0.3; // Slight extra bend
+        segment2.position.set(
+            x,
+            y - (length * 0.6 * Math.sin(rotX)) - (length * 0.2 * Math.sin(rotX + 0.3)),
+            z - (length * 0.6 * Math.cos(rotX)) - (length * 0.2 * Math.cos(rotX + 0.3))
+        );
+        fingerGroup.add(segment2);
+        
+        return fingerGroup;
+    }
+    
+    // Add fingers - positioned to grip the handle - increased sizes and adjusted positions
+    const indexFinger = createFinger(0.025, -0.16, -0.01, 0.09, 0.01, -0.5, "index");
+    const middleFinger = createFinger(0.01, -0.17, 0, 0.095, 0.01, -0.5, "middle");
+    const ringFinger = createFinger(-0.015, -0.17, 0, 0.09, 0.009, -0.5, "ring");
+    const pinkyFinger = createFinger(-0.035, -0.16, -0.01, 0.08, 0.008, -0.5, "pinky");
+    
+    handGroup.add(indexFinger);
+    handGroup.add(middleFinger);
+    handGroup.add(ringFinger);
+    handGroup.add(pinkyFinger);
     
     // Add hand to weapon
     weaponModel.add(handGroup);
     
-    // Very small muzzle marker (almost invisible in normal play)
-    const tipMarkerGeo = new THREE.SphereGeometry(0.01);
+    // Apply separate scaling to hand to make it larger relative to the weapon
+    handGroup.scale.set(1.2, 1.2, 1.2);
+    
+    // Adjust hand position to ensure visibility
+    handGroup.position.set(0, 0.02, 0.04);
+    
+    // Invisible muzzle marker for bullet origin
+    const tipMarkerGeo = new THREE.SphereGeometry(0.004);
     const tipMarkerMat = new THREE.MeshStandardMaterial({ 
         color: 0xFFFFFF,
-        emissive: 0x111111,
         transparent: true,
-        opacity: 0.3
+        opacity: 0.1
     });
     const tipMarker = new THREE.Mesh(tipMarkerGeo, tipMarkerMat);
-    tipMarker.position.set(0, 0.03, -0.55);
+    tipMarker.position.set(0, 0.02, -0.38);
     weaponModel.add(tipMarker);
     
     // Disable frustum culling to ensure it's always rendered
@@ -333,15 +440,15 @@ function createWeaponModel() {
         }
     });
     
-    // Scale down the entire weapon to make it smaller
-    weaponModel.scale.set(0.8, 0.8, 0.8);
+    // Scale down the entire weapon but not as much as before
+    weaponModel.scale.set(0.65, 0.65, 0.65); // Slightly larger than before (was 0.6)
     
     // Add the weapon to the scene
     scene.add(weaponModel);
     
-    // Create a subtle light just for the weapon - much less intense
-    const weaponLight = new THREE.PointLight(0xFFFFFF, 0.5, 3);
-    weaponLight.position.set(0, 0.2, -0.3);
+    // Create a very subtle light for the weapon
+    const weaponLight = new THREE.PointLight(0xFFFFFF, 0.3, 2);
+    weaponLight.position.set(0, 0.1, -0.2);
     weaponModel.add(weaponLight);
     
     // Initialize physics system with current camera position
@@ -353,12 +460,12 @@ function createWeaponModel() {
     const cameraRight = new THREE.Vector3(1, 0, 0).applyQuaternion(camera.quaternion);
     const cameraUp = new THREE.Vector3(0, 1, 0).applyQuaternion(camera.quaternion);
     
-    // Calculate initial position - position it slightly further to the right and down
+    // Position it to better show the hand
     const initialPos = new THREE.Vector3();
     initialPos.copy(camera.position);
-    initialPos.add(cameraDirection.clone().multiplyScalar(0.6)); // Closer to camera (was 0.8)
-    initialPos.add(cameraUp.clone().multiplyScalar(-0.25)); // Slightly higher (was -0.3)
-    initialPos.add(cameraRight.clone().multiplyScalar(0.2)); // More centered (was 0.3)
+    initialPos.add(cameraDirection.clone().multiplyScalar(0.48)); // Moved slightly forward
+    initialPos.add(cameraUp.clone().multiplyScalar(-0.22)); // Higher in view
+    initialPos.add(cameraRight.clone().multiplyScalar(0.12)); // More to the right
     
     // Initialize physics values to prevent initial jump
     weaponPhysics.targetPosition.copy(initialPos);
@@ -373,7 +480,7 @@ function createWeaponModel() {
     weaponModel.position.copy(initialPos);
     weaponModel.quaternion.copy(camera.quaternion);
     
-    console.log("WEAPON DEBUG: Added weapon to scene with fixed position");
+    console.log("WEAPON DEBUG: Added smaller weapon with realistic hand");
     
     return weaponModel;
 }
@@ -396,11 +503,11 @@ function updateWeaponPosition() {
     const cameraRight = new THREE.Vector3(1, 0, 0).applyQuaternion(camera.quaternion);
     const cameraUp = new THREE.Vector3(0, 1, 0).applyQuaternion(camera.quaternion);
     
-    // Base offset from camera - adjusted for smaller weapon
+    // Base offset from camera - adjusted for better hand visibility
     const weaponOffset = {
-        forward: 0.6,  // Closer to camera (was 0.8)
-        down: 0.25,    // Slightly higher (was 0.3)
-        right: 0.2     // More centered (was 0.3)
+        forward: 0.48,  // Slightly further from camera
+        down: 0.22,     // Higher in view
+        right: 0.12     // More to the right
     };
     
     // Calculate the target position in world space
@@ -424,7 +531,7 @@ function updateWeaponPosition() {
     if (timeSinceShot < 200) {
         const recoilProgress = 1 - (timeSinceShot / 200);
         const recoilCurve = Math.sin(recoilProgress * Math.PI); 
-        const recoilAmount = 0.01 * recoilCurve; // Extremely minimal recoil (was 0.015)
+        const recoilAmount = 0.008 * recoilCurve; // Extremely minimal recoil
         
         // Very slight backward movement
         targetPos.add(cameraDirection.clone().multiplyScalar(-recoilAmount));
@@ -816,7 +923,7 @@ function shoot() {
         }
     }
     
-    const bulletGeo = new THREE.CylinderGeometry(0.03, 0.03, 0.2); // Smaller bullet
+    const bulletGeo = new THREE.CylinderGeometry(0.02, 0.02, 0.15); // Smaller bullet
     const bulletMat = new THREE.MeshBasicMaterial({ 
         color: 0xD4AF37, // More realistic gold color for bullet
         emissive: 0xD4AF37
@@ -841,8 +948,8 @@ function shoot() {
         hitPoint.copy(camera.position).add(raycaster.ray.direction.multiplyScalar(100));
     }
     
-    // Find the barrel tip in world space - adjusted position for new model
-    const barrelTip = new THREE.Vector3(0, 0.03, -0.55);
+    // Find the barrel tip in world space - adjusted position for new smaller model
+    const barrelTip = new THREE.Vector3(0, 0.02, -0.38);
     barrelTip.applyMatrix4(weaponModel.matrixWorld);
     
     // Calculate direction from barrel tip to hit point
