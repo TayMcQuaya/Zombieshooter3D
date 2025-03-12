@@ -1,0 +1,718 @@
+----------------------------------------------------------------------------------------------
+1. Zombie Design and Creation:
+----------------------------------------------------------------------------------------------
+// Spawn a single enemy
+function spawnEnemy() {
+    // Create zombie body with our detailed zombie skin texture
+    const geo = new THREE.BoxGeometry(1, 2, 1);
+    
+    // Use our detailed zombie skin texture
+    const zombieSkinTexture = createZombieSkinTexture();
+    
+    // Create a more realistic material with the texture
+    const mat = new THREE.MeshPhongMaterial({ 
+        map: zombieSkinTexture,
+        bumpMap: zombieSkinTexture,
+        bumpScale: 0.05,
+        shininess: 0,
+        emissive: new THREE.Color(0x003300),
+        emissiveIntensity: 0.2
+    });
+    
+    const mesh = new THREE.Mesh(geo, mat);
+    mesh.castShadow = true;
+    mesh.receiveShadow = true;
+    
+    // Create zombie face with our detailed zombie face texture
+    const faceGeo = new THREE.PlaneGeometry(0.8, 0.8);
+    
+    // Use our detailed zombie face texture
+    const faceTexture = createZombieFaceTexture();
+    
+    const faceMat = new THREE.MeshBasicMaterial({
+        map: faceTexture,
+        transparent: true
+    });
+    const face = new THREE.Mesh(faceGeo, faceMat);
+    
+    // Position face on front of zombie
+    face.position.z = 0.51;
+    face.position.y = 0.5;
+    mesh.add(face);
+    
+    // Add limbs with the same zombie skin texture
+    
+    // Arms
+    const armGeo = new THREE.BoxGeometry(0.25, 0.8, 0.25);
+    
+    // Left arm - positioned extended forward
+    const leftArm = new THREE.Mesh(armGeo, mat);
+    leftArm.position.x = -0.6;
+    leftArm.position.y = 0;
+    // Rotate arm to extend forward
+    leftArm.rotation.z = Math.random() * 0.2 - 0.1; // Slight random Z rotation
+    leftArm.rotation.x = -Math.PI / 2; // Rotate forward by 90 degrees (straight forward)
+    leftArm.position.z = 0.4; // Move forward
+    leftArm.castShadow = true;
+    mesh.add(leftArm);
+    
+    // Right arm - positioned extended forward
+    const rightArm = new THREE.Mesh(armGeo, mat);
+    rightArm.position.x = 0.6;
+    rightArm.position.y = 0;
+    // Rotate arm to extend forward
+    rightArm.rotation.z = Math.random() * 0.2 - 0.1; // Slight random Z rotation
+    rightArm.rotation.x = -Math.PI / 2; // Rotate forward by 90 degrees (straight forward)
+    rightArm.position.z = 0.4; // Move forward
+    rightArm.castShadow = true;
+    mesh.add(rightArm);
+    
+    // Legs
+    const legGeo = new THREE.BoxGeometry(0.25, 0.8, 0.25);
+    
+    // Left leg
+    const leftLeg = new THREE.Mesh(legGeo, mat);
+    leftLeg.position.set(-0.2, -1, 0);
+    leftLeg.castShadow = true;
+    mesh.add(leftLeg);
+    
+    // Right leg
+    const rightLeg = new THREE.Mesh(legGeo, mat);
+    rightLeg.position.set(0.2, -1, 0);
+    rightLeg.castShadow = true;
+    mesh.add(rightLeg);
+    
+    // Add some random rotation to make zombies look more shambling
+    mesh.rotation.x = Math.random() * 0.2 - 0.1;
+    mesh.rotation.z = Math.random() * 0.2 - 0.1;
+    
+    // Random position at arena edge
+    const angle = Math.random() * Math.PI * 2;
+    const radius = 20;
+    const spawnX = Math.cos(angle) * radius;
+    const spawnZ = Math.sin(angle) * radius;
+    
+    // Start position (underground)
+    mesh.position.set(spawnX, -2, spawnZ);
+    
+    const enemy = {
+        mesh: mesh,
+        health: 3,  // Zombie dies after 3 hits
+        lastHit: 0,
+        isHit: false,
+        lastAttack: 0,
+        spawnTime: Date.now(),
+        isSpawning: true,
+        targetY: 1,
+        originalScale: mesh.scale.clone(),
+        originalMaterialProps: {
+            color: mat.color.getHex(),
+            emissive: mat.emissive.getHex(),
+            emissiveIntensity: mat.emissiveIntensity || 0.2
+        },
+        // Store references to limbs for animation
+        leftArm: leftArm,
+        rightArm: rightArm,
+        // Store original arm rotations for animation
+        leftArmDefaultRotation: leftArm.rotation.clone(),
+        rightArmDefaultRotation: rightArm.rotation.clone()
+    };
+    
+    // Add blood splatter effects on random parts of the zombie
+    addBloodSplatter(mesh);
+    
+    scene.add(mesh);
+    enemies.push(enemy);
+    
+    // Update global reference
+    window.enemies = enemies;
+    
+    console.log("Spawned zombie with health:", enemy.health);
+}
+
+----------------------------------------------------------------------------------------------
+2. Zombie Collission Detection and Handling:
+----------------------------------------------------------------------------------------------
+// Hit enemy (reduce health)
+function hitEnemy(enemy) {
+    console.log("Hit enemy called, health before:", enemy.health);
+    
+    // Prevent multiple hits in quick succession
+    const now = Date.now();
+    if (enemy.isHit && now - enemy.lastHit < 200) {
+        console.log("Hit ignored - too soon after last hit");
+        return;
+    }
+    
+    // Reduce health
+    enemy.health -= 1;
+    enemy.isHit = true;
+    enemy.lastHit = now;
+    
+    // Store original properties if not already stored
+    if (!enemy.originalScale) {
+        enemy.originalScale = enemy.mesh.scale.clone();
+    }
+    
+    if (!enemy.originalMaterialProps) {
+        // Store original material properties
+        enemy.originalMaterialProps = {
+            emissive: enemy.mesh.material.emissive.getHex(),
+            emissiveIntensity: enemy.mesh.material.emissiveIntensity || 0.2
+        };
+    }
+    
+    // Visual feedback - make zombie glow red when hit
+    enemy.mesh.material.emissive.setHex(0xff0000);  // Set emissive to red
+    enemy.mesh.material.emissiveIntensity = 0.8;    // Strong emissive effect
+    
+    // Apply the same effect to all limbs, but not to blood splatters
+    enemy.mesh.children.forEach(child => {
+        // Only apply to limbs with emissive properties, not to blood splatters
+        if (child.material && child.material.emissive && (!child.userData || !child.userData.isBloodSplatter)) {
+            child.material.emissive.setHex(0xff0000);
+            child.material.emissiveIntensity = 0.8;
+        }
+    });
+    
+    // Add a slight scale effect (make zombie slightly larger when hit)
+    enemy.mesh.scale.set(
+        enemy.originalScale.x * 1.2,
+        enemy.originalScale.y * 1.2,
+        enemy.originalScale.z * 1.2
+    );
+    
+    // Add a new blood splatter at the hit location
+    const hitPosition = new THREE.Vector3(
+        Math.random() * 0.8 - 0.4,
+        Math.random() * 1.6 - 0.8,
+        0.53 // Slightly in front of existing splatters
+    );
+    
+    // Create blood splatter
+    const splatterGeo = new THREE.PlaneGeometry(0.4 + Math.random() * 0.3, 0.4 + Math.random() * 0.3);
+    
+    // Create blood texture
+    const canvas = document.createElement('canvas');
+    canvas.width = 128;
+    canvas.height = 128;
+    const ctx = canvas.getContext('2d');
+    
+    // Draw blood splatter
+    ctx.fillStyle = 'rgba(0, 0, 0, 0)';
+    ctx.fillRect(0, 0, 128, 128);
+    
+    // Blood color - brighter red for fresh blood
+    ctx.fillStyle = `rgba(${200 + Math.random() * 55}, ${10 + Math.random() * 20}, ${10 + Math.random() * 20}, 0.95)`;
+    
+    // Create splatter shape
+    ctx.beginPath();
+    ctx.arc(64, 64, 40 + Math.random() * 20, 0, Math.PI * 2);
+    ctx.fill();
+    
+    // Add drips
+    const dripCount = 4 + Math.floor(Math.random() * 4);
+    for (let j = 0; j < dripCount; j++) {
+        const angle = Math.random() * Math.PI * 2;
+        const length = 30 + Math.random() * 40;
+        const width = 8 + Math.random() * 12;
+        
+        const x = 64 + Math.cos(angle) * 30;
+        const y = 64 + Math.sin(angle) * 30;
+        
+        ctx.beginPath();
+        ctx.moveTo(x, y);
+        ctx.lineTo(x + Math.cos(angle) * length, y + Math.sin(angle) * length);
+        ctx.lineWidth = width;
+        ctx.strokeStyle = `rgba(${200 + Math.random() * 55}, ${10 + Math.random() * 20}, ${10 + Math.random() * 20}, 0.9)`;
+        ctx.stroke();
+    }
+    
+    // Create texture
+    const splatterTexture = new THREE.CanvasTexture(canvas);
+    
+    // Create material with improved rendering properties
+    const splatterMat = new THREE.MeshBasicMaterial({
+        map: splatterTexture,
+        transparent: true,
+        side: THREE.DoubleSide,
+        depthWrite: false, // Prevent z-fighting
+        depthTest: true,   // Still test against depth buffer
+        alphaTest: 0.1     // Discard very transparent pixels
+    });
+    
+    // Create mesh
+    const splatter = new THREE.Mesh(splatterGeo, splatterMat);
+    splatter.position.copy(hitPosition);
+    splatter.rotation.z = Math.random() * Math.PI * 2;
+    
+    // Mark this as a blood splatter for special handling
+    splatter.userData = { isBloodSplatter: true };
+    
+    // Set render order to ensure blood splatters render after the zombie parts
+    splatter.renderOrder = 1;
+    
+    enemy.mesh.add(splatter);
+    
+    // Play hit sound
+    if (typeof playSound === 'function') {
+        playSound('hit');
+    }
+    
+    // Create hit effect
+    createHitEffect(enemy.mesh.position, 0xff0000);
+    
+    console.log("Enemy health after hit:", enemy.health);
+    
+    // Check if enemy is destroyed
+    if (enemy.health <= 0) {
+        console.log("Enemy destroyed");
+        destroyEnemy(enemy);
+    }
+}
+
+// Create hit effect at position
+function createHitEffect(position, color) {
+    // Create a bright red flash of light
+    const flash = new THREE.PointLight(0xff0000, 2, 5);
+    flash.position.copy(position);
+    flash.position.y += 1; // Adjust height for zombie center mass
+    scene.add(flash);
+    
+    // Animate the flash intensity
+    let intensity = 2;
+    const fadeOut = setInterval(() => {
+        intensity -= 0.2;
+        if (intensity <= 0) {
+            clearInterval(fadeOut);
+            scene.remove(flash);
+        } else {
+            flash.intensity = intensity;
+        }
+    }, 30);
+    
+    // Create blood particles
+    const particleCount = 8;
+    for (let i = 0; i < particleCount; i++) {
+        // Create a small red particle
+        const particleGeo = new THREE.SphereGeometry(0.05, 8, 8);
+        const particleMat = new THREE.MeshBasicMaterial({ 
+            color: 0xff0000,
+            transparent: true,
+            opacity: 0.8
+        });
+        const particle = new THREE.Mesh(particleGeo, particleMat);
+        
+        // Position at hit location
+        particle.position.copy(position);
+        particle.position.y += 1; // Center on zombie
+        
+        // Add random velocity
+        const velocity = new THREE.Vector3(
+            (Math.random() - 0.5) * 0.1,
+            Math.random() * 0.1,
+            (Math.random() - 0.5) * 0.1
+        );
+        
+        scene.add(particle);
+        
+        // Add to particles array with creation time
+        particles.push({
+            mesh: particle,
+            velocity: velocity,
+            created: Date.now(),
+            opacity: 0.8
+        });
+    }
+}
+
+----------------------------------------------------------------------------------------------
+3. Zombie Hit Feedback:
+----------------------------------------------------------------------------------------------
+// Hit enemy (reduce health)
+function hitEnemy(enemy) {
+    console.log("Hit enemy called, health before:", enemy.health);
+    
+    // Prevent multiple hits in quick succession
+    const now = Date.now();
+    if (enemy.isHit && now - enemy.lastHit < 200) {
+        console.log("Hit ignored - too soon after last hit");
+        return;
+    }
+    
+    // Reduce health
+    enemy.health -= 1;
+    enemy.isHit = true;
+    enemy.lastHit = now;
+    
+    // Store original properties if not already stored
+    if (!enemy.originalScale) {
+        enemy.originalScale = enemy.mesh.scale.clone();
+    }
+    
+    if (!enemy.originalMaterialProps) {
+        // Store original material properties
+        enemy.originalMaterialProps = {
+            emissive: enemy.mesh.material.emissive.getHex(),
+            emissiveIntensity: enemy.mesh.material.emissiveIntensity || 0.2
+        };
+    }
+    
+    // Visual feedback - make zombie glow red when hit
+    enemy.mesh.material.emissive.setHex(0xff0000);  // Set emissive to red
+    enemy.mesh.material.emissiveIntensity = 0.8;    // Strong emissive effect
+    
+    // Apply the same effect to all limbs, but not to blood splatters
+    enemy.mesh.children.forEach(child => {
+        // Only apply to limbs with emissive properties, not to blood splatters
+        if (child.material && child.material.emissive && (!child.userData || !child.userData.isBloodSplatter)) {
+            child.material.emissive.setHex(0xff0000);
+            child.material.emissiveIntensity = 0.8;
+        }
+    });
+    
+    // Add a slight scale effect (make zombie slightly larger when hit)
+    enemy.mesh.scale.set(
+        enemy.originalScale.x * 1.2,
+        enemy.originalScale.y * 1.2,
+        enemy.originalScale.z * 1.2
+    );
+    
+    // Add a new blood splatter at the hit location
+    const hitPosition = new THREE.Vector3(
+        Math.random() * 0.8 - 0.4,
+        Math.random() * 1.6 - 0.8,
+        0.53 // Slightly in front of existing splatters
+    );
+    
+    // Create blood splatter
+    const splatterGeo = new THREE.PlaneGeometry(0.4 + Math.random() * 0.3, 0.4 + Math.random() * 0.3);
+    
+    // Create blood texture
+    const canvas = document.createElement('canvas');
+    canvas.width = 128;
+    canvas.height = 128;
+    const ctx = canvas.getContext('2d');
+    
+    // Draw blood splatter
+    ctx.fillStyle = 'rgba(0, 0, 0, 0)';
+    ctx.fillRect(0, 0, 128, 128);
+    
+    // Blood color - brighter red for fresh blood
+    ctx.fillStyle = `rgba(${200 + Math.random() * 55}, ${10 + Math.random() * 20}, ${10 + Math.random() * 20}, 0.95)`;
+    
+    // Create splatter shape
+    ctx.beginPath();
+    ctx.arc(64, 64, 40 + Math.random() * 20, 0, Math.PI * 2);
+    ctx.fill();
+    
+    // Add drips
+    const dripCount = 4 + Math.floor(Math.random() * 4);
+    for (let j = 0; j < dripCount; j++) {
+        const angle = Math.random() * Math.PI * 2;
+        const length = 30 + Math.random() * 40;
+        const width = 8 + Math.random() * 12;
+        
+        const x = 64 + Math.cos(angle) * 30;
+        const y = 64 + Math.sin(angle) * 30;
+        
+        ctx.beginPath();
+        ctx.moveTo(x, y);
+        ctx.lineTo(x + Math.cos(angle) * length, y + Math.sin(angle) * length);
+        ctx.lineWidth = width;
+        ctx.strokeStyle = `rgba(${200 + Math.random() * 55}, ${10 + Math.random() * 20}, ${10 + Math.random() * 20}, 0.9)`;
+        ctx.stroke();
+    }
+    
+    // Create texture
+    const splatterTexture = new THREE.CanvasTexture(canvas);
+    
+    // Create material with improved rendering properties
+    const splatterMat = new THREE.MeshBasicMaterial({
+        map: splatterTexture,
+        transparent: true,
+        side: THREE.DoubleSide,
+        depthWrite: false, // Prevent z-fighting
+        depthTest: true,   // Still test against depth buffer
+        alphaTest: 0.1     // Discard very transparent pixels
+    });
+    
+    // Create mesh
+    const splatter = new THREE.Mesh(splatterGeo, splatterMat);
+    splatter.position.copy(hitPosition);
+    splatter.rotation.z = Math.random() * Math.PI * 2;
+    
+    // Mark this as a blood splatter for special handling
+    splatter.userData = { isBloodSplatter: true };
+    
+    // Set render order to ensure blood splatters render after the zombie parts
+    splatter.renderOrder = 1;
+    
+    enemy.mesh.add(splatter);
+    
+    // Play hit sound
+    if (typeof playSound === 'function') {
+        playSound('hit');
+    }
+    
+    // Create hit effect
+    createHitEffect(enemy.mesh.position, 0xff0000);
+    
+    console.log("Enemy health after hit:", enemy.health);
+    
+    // Check if enemy is destroyed
+    if (enemy.health <= 0) {
+        console.log("Enemy destroyed");
+        destroyEnemy(enemy);
+    }
+}
+
+// Create hit effect at position
+function createHitEffect(position, color) {
+    // Create a bright red flash of light
+    const flash = new THREE.PointLight(0xff0000, 2, 5);
+    flash.position.copy(position);
+    flash.position.y += 1; // Adjust height for zombie center mass
+    scene.add(flash);
+    
+    // Animate the flash intensity
+    let intensity = 2;
+    const fadeOut = setInterval(() => {
+        intensity -= 0.2;
+        if (intensity <= 0) {
+            clearInterval(fadeOut);
+            scene.remove(flash);
+        } else {
+            flash.intensity = intensity;
+        }
+    }, 30);
+    
+    // Create blood particles
+    const particleCount = 8;
+    for (let i = 0; i < particleCount; i++) {
+        // Create a small red particle
+        const particleGeo = new THREE.SphereGeometry(0.05, 8, 8);
+        const particleMat = new THREE.MeshBasicMaterial({ 
+            color: 0xff0000,
+            transparent: true,
+            opacity: 0.8
+        });
+        const particle = new THREE.Mesh(particleGeo, particleMat);
+        
+        // Position at hit location
+        particle.position.copy(position);
+        particle.position.y += 1; // Center on zombie
+        
+        // Add random velocity
+        const velocity = new THREE.Vector3(
+            (Math.random() - 0.5) * 0.1,
+            Math.random() * 0.1,
+            (Math.random() - 0.5) * 0.1
+        );
+        
+        scene.add(particle);
+        
+        // Add to particles array with creation time
+        particles.push({
+            mesh: particle,
+            velocity: velocity,
+            created: Date.now(),
+            opacity: 0.8
+        });
+    }
+}
+
+----------------------------------------------------------------------------------------------
+4. Zombie Death and Dismemberment:
+----------------------------------------------------------------------------------------------
+// Destroy an enemy (when hit by projectile)
+function destroyEnemy(enemy) {
+    console.log("Destroying enemy");
+    
+    // Create explosion effect
+    createExplosionEffect(enemy.mesh.position, 0xff0000);
+    
+    // Create dismemberment effect - break zombie into pieces
+    createDismembermentEffect(enemy);
+    
+    // Play explosion sound
+    if (typeof playSound === 'function') {
+        playSound('explode');
+    }
+    
+    // Remove from scene
+    scene.remove(enemy.mesh);
+    
+    // Dispose of geometry and material to free memory
+    if (enemy.mesh.geometry) enemy.mesh.geometry.dispose();
+    if (enemy.mesh.material) enemy.mesh.material.dispose();
+    
+    // Remove from array
+    const index = enemies.indexOf(enemy);
+    if (index !== -1) {
+        enemies.splice(index, 1);
+    }
+    
+    // Update score
+    if (typeof updateScore === 'function') {
+        updateScore(10);
+    }
+    
+    // Update zombie kill count
+    if (typeof updateZombieKills === 'function') {
+        updateZombieKills();
+    }
+    
+    // Small chance to spawn a power-up where enemy died
+    if (typeof spawnRandomPowerup === 'function' && Math.random() < 0.1) {
+        // Clone position but keep it on the ground
+        const powerupPos = enemy.mesh.position.clone();
+        powerupPos.y = 0;
+        
+        // Check if position is valid for a power-up
+        if (typeof isPositionClearOfObstacles === 'function' && isPositionClearOfObstacles(powerupPos)) {
+            spawnRandomPowerup(waveNumber);
+        }
+    }
+    
+    // Update global reference
+    window.enemies = enemies;
+    
+    // Check if wave is complete
+    if (enemies.length === 0) {
+        waveInProgress = false;
+    }
+}
+
+// Create dismemberment effect - break zombie into pieces
+function createDismembermentEffect(enemy) {
+    const position = enemy.mesh.position.clone();
+    const rotation = enemy.mesh.rotation.clone();
+    
+    // Create zombie parts
+    const parts = [];
+    
+    // Create torso part
+    const torsoGeo = new THREE.BoxGeometry(1, 1, 0.5);
+    const torsoMat = enemy.mesh.material.clone();
+    const torso = new THREE.Mesh(torsoGeo, torsoMat);
+    torso.position.copy(position);
+    torso.position.y += 0.25;
+    torso.rotation.copy(rotation);
+    scene.add(torso);
+    
+    // Create head part
+    const headGeo = new THREE.BoxGeometry(0.6, 0.6, 0.6);
+    const headMat = enemy.mesh.material.clone();
+    const head = new THREE.Mesh(headGeo, headMat);
+    head.position.copy(position);
+    head.position.y += 1;
+    head.rotation.copy(rotation);
+    scene.add(head);
+    
+    // Create limbs
+    const limbGeo = new THREE.BoxGeometry(0.25, 0.8, 0.25);
+    const limbMat = enemy.mesh.material.clone();
+    
+    // Left arm - positioned extended forward like the original
+    const leftArm = new THREE.Mesh(limbGeo, limbMat);
+    leftArm.position.copy(position);
+    leftArm.position.x -= 0.6;
+    leftArm.position.y += 0.25;
+    leftArm.position.z += 0.4; // Move forward
+    leftArm.rotation.copy(rotation);
+    leftArm.rotation.x += -Math.PI / 2; // Rotate forward by 90 degrees
+    scene.add(leftArm);
+    
+    // Right arm - positioned extended forward like the original
+    const rightArm = new THREE.Mesh(limbGeo, limbMat);
+    rightArm.position.copy(position);
+    rightArm.position.x += 0.6;
+    rightArm.position.y += 0.25;
+    rightArm.position.z += 0.4; // Move forward
+    rightArm.rotation.copy(rotation);
+    rightArm.rotation.x += -Math.PI / 2; // Rotate forward by 90 degrees
+    scene.add(rightArm);
+    
+    // Left leg
+    const leftLeg = new THREE.Mesh(limbGeo, limbMat);
+    leftLeg.position.copy(position);
+    leftLeg.position.x -= 0.2;
+    leftLeg.position.y -= 0.5;
+    leftLeg.rotation.copy(rotation);
+    scene.add(leftLeg);
+    
+    // Right leg
+    const rightLeg = new THREE.Mesh(limbGeo, limbMat);
+    rightLeg.position.copy(position);
+    rightLeg.position.x += 0.2;
+    rightLeg.position.y -= 0.5;
+    rightLeg.rotation.copy(rotation);
+    scene.add(rightLeg);
+    
+    // Add all parts to the array
+    parts.push(torso, head, leftArm, rightArm, leftLeg, rightLeg);
+    
+    // Add blood splatter to each part
+    parts.forEach(part => {
+        // Create blood texture
+        const canvas = document.createElement('canvas');
+        canvas.width = 128;
+        canvas.height = 128;
+        const ctx = canvas.getContext('2d');
+        
+        // Draw blood splatter
+        ctx.fillStyle = 'rgba(150, 10, 10, 0.9)';
+        ctx.fillRect(0, 0, 128, 128);
+        
+        // Create texture
+        const bloodTexture = new THREE.CanvasTexture(canvas);
+        
+        // Create blood plane
+        const bloodGeo = new THREE.PlaneGeometry(part.geometry.parameters.width * 1.2, part.geometry.parameters.height * 1.2);
+        const bloodMat = new THREE.MeshBasicMaterial({
+            map: bloodTexture,
+            transparent: true,
+            opacity: 0.8,
+            side: THREE.DoubleSide,
+            depthWrite: false, // Prevent z-fighting
+            depthTest: true,   // Still test against depth buffer
+            alphaTest: 0.1     // Discard very transparent pixels
+        });
+        
+        const blood = new THREE.Mesh(bloodGeo, bloodMat);
+        blood.position.z = 0.3;
+        
+        // Mark this as a blood splatter for special handling
+        blood.userData = { isBloodSplatter: true };
+        
+        // Set render order to ensure blood splatters render after the zombie parts
+        blood.renderOrder = 1;
+        
+        part.add(blood);
+    });
+    
+    // Add physics to each part
+    parts.forEach(part => {
+        const velocity = new THREE.Vector3(
+            (Math.random() - 0.5) * 0.2,
+            Math.random() * 0.3,
+            (Math.random() - 0.5) * 0.2
+        );
+        
+        const rotationVel = new THREE.Vector3(
+            (Math.random() - 0.5) * 0.2,
+            (Math.random() - 0.5) * 0.2,
+            (Math.random() - 0.5) * 0.2
+        );
+        
+        // Add to particles array with creation time
+        particles.push({
+            mesh: part,
+            velocity: velocity,
+            rotationVel: rotationVel,
+            created: Date.now(),
+            isDismembered: true
+        });
+    });
+}
