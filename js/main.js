@@ -757,10 +757,12 @@ function togglePause() {
         hidePauseMenu();
         document.body.classList.add('game-active');
         
-        // Use our new resumePointerLock function if available (more reliable)
+        // Simply call our enhanced resumePointerLock function
+        // It now handles all the timing and retry logic internally
         if (typeof window.resumePointerLock === 'function') {
             window.resumePointerLock();
         } else {
+            // Only as a last resort fallback
             document.body.requestPointerLock();
         }
         
@@ -788,15 +790,21 @@ function hidePauseMenu() {
 function initPauseMenu() {
     const resumeButton = document.getElementById('resume-button');
     if (resumeButton) {
-        resumeButton.addEventListener('click', () => {
+        resumeButton.addEventListener('click', (event) => {
+            // Prevent any default behaviors that might interfere
+            event.preventDefault();
+            event.stopPropagation();
+            
+            // First update game state
             gamePaused = false;
             hidePauseMenu();
             document.body.classList.add('game-active');
             
-            // Use our new resumePointerLock function if available (more reliable)
+            // Use our new comprehensive pointer lock system
             if (typeof window.resumePointerLock === 'function') {
                 window.resumePointerLock();
             } else {
+                // Only as a last resort fallback
                 document.body.requestPointerLock();
             }
             

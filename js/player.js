@@ -88,7 +88,8 @@ let previousQuaternion = new THREE.Quaternion();
 function initPlayer() {
     console.log("Initializing player...");
     
-    // Create debug indicator in HTML
+    // Create debug indicator in HTML - COMMENTED OUT to remove the position display
+    /* 
     const debugElement = document.createElement('div');
     debugElement.id = 'weapon-debug';
     debugElement.style.position = 'fixed';
@@ -102,6 +103,7 @@ function initPlayer() {
     debugElement.style.fontSize = '14px';
     debugElement.innerText = 'Weapon Debug: Initializing...';
     document.body.appendChild(debugElement);
+    */
     
     // Set up key listeners for movement
     document.addEventListener('keydown', onKeyDown);
@@ -127,8 +129,8 @@ function initPlayer() {
     // Create the weapon model
     createWeaponModel();
     
-    // Add event listener for checking weapon visibility
-    setInterval(debugWeaponVisibility, 1000);
+    // COMMENTED OUT the debug visibility checker
+    // setInterval(debugWeaponVisibility, 1000);
     
     // Also create it with a delay to ensure it's visible
     setTimeout(() => {
@@ -147,27 +149,25 @@ function initPlayer() {
     console.log("Player initialized, camera:", camera);
 }
 
-// Debug function to check weapon visibility
+// Debug function to check weapon visibility - MODIFIED to just log to console instead of showing on screen
 function debugWeaponVisibility() {
-    const debugElement = document.getElementById('weapon-debug');
-    if (!debugElement) return;
+    // Remove on-screen debug display
+    /* const debugElement = document.getElementById('weapon-debug');
+    if (!debugElement) return; */
     
     if (!weaponModel) {
-        debugElement.innerText = 'Weapon Debug: NO WEAPON MODEL FOUND!';
-        debugElement.style.backgroundColor = 'rgba(255,0,0,0.7)';
+        console.log('Weapon Debug: NO WEAPON MODEL FOUND!');
         return;
     }
     
     if (!scene.children.includes(weaponModel)) {
-        debugElement.innerText = 'Weapon Debug: Weapon not in scene!';
-        debugElement.style.backgroundColor = 'rgba(255,0,0,0.7)';
+        console.log('Weapon Debug: Weapon not in scene!');
         return;
     }
     
     const positionMode = weaponPhysics.useFixedPosition ? "FIXED POSITION" : "PHYSICS MODE";
     const springInfo = `Spring: strength=${weaponPhysics.springStrength}, damping=${weaponPhysics.damping}`;
-    debugElement.innerText = `Weapon Debug: ${positionMode}\nModel at position ${weaponModel.position.x.toFixed(2)}, ${weaponModel.position.y.toFixed(2)}, ${weaponModel.position.z.toFixed(2)}\n${springInfo}`;
-    debugElement.style.backgroundColor = 'rgba(0,255,0,0.7)';
+    console.log(`Weapon Debug: ${positionMode} - Model at position ${weaponModel.position.x.toFixed(2)}, ${weaponModel.position.y.toFixed(2)}, ${weaponModel.position.z.toFixed(2)} - ${springInfo}`);
 }
 
 // Create weapon model (pistol and hand)
@@ -675,12 +675,105 @@ function onPointerLockChange() {
     }
 }
 
-// FIX for pause menu - Add this new function to ensure pointer lock on resume
+// FIX for pause menu - Completely redesigned with persistent multi-attempt strategy
 function resumePointerLock() {
-    if (gameActive && !gamePaused) {
-        // Request pointer lock again
-        document.body.requestPointerLock();
+    console.log("Starting enhanced pointer lock sequence...");
+    
+    // Only proceed if game is active and not paused
+    if (!gameActive || gamePaused) {
+        console.log("Game not active or paused - skipping pointer lock");
+        return;
     }
+    
+    // First ensure any existing pointer lock is cleared
+    if (document.pointerLockElement) {
+        console.log("Releasing existing pointer lock");
+        document.exitPointerLock();
+    }
+    
+    // Create a variable to track attempts
+    let attemptCount = 0;
+    const MAX_ATTEMPTS = 5;
+    
+    // Schedule multiple attempts with increasing delays
+    const attemptLock = function() {
+        attemptCount++;
+        
+        if (!gameActive || gamePaused) {
+            console.log("Game state changed - aborting remaining lock attempts");
+            return;
+        }
+        
+        if (document.pointerLockElement === document.body) {
+            console.log("Pointer lock successfully acquired on attempt", attemptCount);
+            return; // Success, stop trying
+        }
+        
+        console.log(`Pointer lock attempt ${attemptCount}/${MAX_ATTEMPTS}`);
+        
+        // Focus on document body first
+        document.body.focus();
+        
+        // Request pointer lock
+        try {
+            document.body.requestPointerLock();
+        } catch (e) {
+            console.error("Error requesting pointer lock:", e);
+        }
+        
+        // Continue attempts if needed
+        if (attemptCount < MAX_ATTEMPTS) {
+            // Schedule next attempt with increasing delay
+            setTimeout(attemptLock, 100 * attemptCount); // 100ms, 200ms, 300ms, etc.
+        } else {
+            console.log("Maximum pointer lock attempts reached");
+            
+            // Final fallback: try forcing game state refresh
+            if (!document.pointerLockElement && gameActive && !gamePaused) {
+                console.log("Attempting emergency game state refresh...");
+                
+                // Add a click event listener to the document that will request pointer lock
+                const emergencyLockHandler = function() {
+                    if (gameActive && !gamePaused) {
+                        document.body.requestPointerLock();
+                    }
+                    document.removeEventListener('click', emergencyLockHandler);
+                };
+                
+                document.addEventListener('click', emergencyLockHandler);
+                
+                // Alert the user that they need to click
+                const lockMessage = document.createElement('div');
+                lockMessage.textContent = 'Click anywhere to continue';
+                lockMessage.style.position = 'fixed';
+                lockMessage.style.top = '50%';
+                lockMessage.style.left = '50%';
+                lockMessage.style.transform = 'translate(-50%, -50%)';
+                lockMessage.style.color = 'white';
+                lockMessage.style.background = 'rgba(0,0,0,0.7)';
+                lockMessage.style.padding = '20px';
+                lockMessage.style.borderRadius = '10px';
+                lockMessage.style.zIndex = '10000';
+                lockMessage.style.fontFamily = 'Arial, sans-serif';
+                lockMessage.style.fontSize = '24px';
+                lockMessage.id = 'emergency-lock-message';
+                
+                document.body.appendChild(lockMessage);
+                
+                // Remove the message after 3 seconds
+                setTimeout(() => {
+                    const msgElement = document.getElementById('emergency-lock-message');
+                    if (msgElement) {
+                        document.body.removeChild(msgElement);
+                    }
+                }, 3000);
+            }
+        }
+    };
+    
+    // Start the first attempt immediately, but give a small delay to ensure 
+    // any previous pointer lock operations have completed
+    setTimeout(attemptLock, 20);
 }
 
 // Update player position
@@ -943,21 +1036,24 @@ function shoot() {
         // If we hit something, use that point
         hitPoint = intersects[0].point;
     } else {
-        // If we didn't hit anything, use a point far along the ray
+        // If we didn't hit something, use a point far along the ray
         hitPoint = new THREE.Vector3();
         hitPoint.copy(camera.position).add(raycaster.ray.direction.multiplyScalar(100));
     }
     
-    // Find the barrel tip in world space - adjusted position for new smaller model
-    const barrelTip = new THREE.Vector3(0, 0.02, -0.38);
-    barrelTip.applyMatrix4(weaponModel.matrixWorld);
+    // Define the barrel tip position in local space
+    const localBarrelTip = new THREE.Vector3(0, 0.02, -0.38);
+    
+    // Calculate the world position of the barrel tip for the bullet
+    const barrelTipWorld = localBarrelTip.clone();
+    barrelTipWorld.applyMatrix4(weaponModel.matrixWorld);
     
     // Calculate direction from barrel tip to hit point
     const direction = new THREE.Vector3();
-    direction.subVectors(hitPoint, barrelTip).normalize();
+    direction.subVectors(hitPoint, barrelTipWorld).normalize();
     
-    // Position bullet at barrel tip
-    bullet.position.copy(barrelTip);
+    // Position bullet at barrel tip world position
+    bullet.position.copy(barrelTipWorld);
     
     // Align bullet with trajectory
     bullet.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), direction);
@@ -967,7 +1063,7 @@ function shoot() {
         mesh: bullet,
         velocity: direction.clone().multiplyScalar(PROJECTILE_SPEED),
         created: now,
-        startPoint: barrelTip.clone(),
+        startPoint: barrelTipWorld.clone(),
         targetPoint: hitPoint.clone()
     };
     
@@ -975,47 +1071,63 @@ function shoot() {
     scene.add(bullet);
     projectiles.push(projectile);
     
-    // Create muzzle flash
-    createMuzzleFlash(barrelTip);
+    // Create muzzle flash - passing no position as we now use local coordinates
+    createMuzzleFlash();
     
     // Play sound
     if (typeof playSound === 'function') {
         playSound('shoot');
     }
     
-    // Update debug display
-    const debugElement = document.getElementById('weapon-debug');
-    if (debugElement) {
-        debugElement.innerText = `Weapon Debug: Shot fired from ${barrelTip.x.toFixed(2)}, ${barrelTip.y.toFixed(2)}, ${barrelTip.z.toFixed(2)}`;
-        debugElement.style.backgroundColor = 'rgba(255,255,0,0.7)';
-    }
+    // Log debug info
+    console.log(`Shot fired from ${barrelTipWorld.x.toFixed(2)}, ${barrelTipWorld.y.toFixed(2)}, ${barrelTipWorld.z.toFixed(2)}`);
 }
 
 // Create muzzle flash effect
-function createMuzzleFlash(position) {
-    // Create a bright point light
+function createMuzzleFlash() {
+    // Create a bright point light and attach it to the weapon model
     const flashLight = new THREE.PointLight(0xFFFF00, 5, 2);
-    flashLight.position.copy(position);
-    scene.add(flashLight);
     
-    // Create a small glowing sphere
-    const flashGeo = new THREE.SphereGeometry(0.1, 8, 8);
+    // Define the barrel tip position in local space
+    const localBarrelTip = new THREE.Vector3(0, 0.02, -0.38);
+    
+    // Position the light at the barrel tip in local space
+    flashLight.position.copy(localBarrelTip);
+    
+    // Create a small glowing cylinder for visual effect
+    const flashGeo = new THREE.CylinderGeometry(0.03, 0.05, 0.05);
     const flashMat = new THREE.MeshBasicMaterial({ 
-        color: 0xFFFF00,
+        color: 0xFFFF88,
         transparent: true,
-        opacity: 0.8
+        opacity: 0.9
     });
-    const flash = new THREE.Mesh(flashGeo, flashMat);
-    flash.position.copy(position);
-    scene.add(flash);
+    const flashMesh = new THREE.Mesh(flashGeo, flashMat);
     
-    // Remove after a short time
+    // Position the mesh at the barrel tip in local space
+    flashMesh.position.copy(localBarrelTip);
+    
+    // Orient the flash correctly
+    flashMesh.rotation.x = Math.PI / 2;
+    
+    // Add the flash light and mesh to the weapon model (not the scene)
+    weaponModel.add(flashLight);
+    weaponModel.add(flashMesh);
+    
+    // Store the time when the flash was created
+    const flashCreatedTime = Date.now();
+    
+    // Schedule removal of the flash effect
     setTimeout(() => {
-        scene.remove(flashLight);
-        scene.remove(flash);
-        flashMat.dispose();
+        // Remove the flash light and mesh from the weapon model
+        weaponModel.remove(flashLight);
+        weaponModel.remove(flashMesh);
+        
+        // Dispose of resources
         flashGeo.dispose();
-    }, 100);
+        flashMat.dispose();
+        
+        console.log("Muzzle flash removed after " + (Date.now() - flashCreatedTime) + "ms");
+    }, 50); // Short duration flash
 }
 
 // Update projectiles
