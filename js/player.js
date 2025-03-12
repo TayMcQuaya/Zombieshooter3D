@@ -1138,27 +1138,44 @@ function updateProjectiles() {
     for (let i = projectiles.length - 1; i >= 0; i--) {
         const projectile = projectiles[i];
         
+        // Store previous position for ground collision detection
+        const prevY = projectile.mesh.position.y;
+        
         // Move projectile
         projectile.mesh.position.add(projectile.velocity);
         
         // Check for collision with environment
         let environmentCollision = false;
         
-        // Use raycaster to check for collisions with environment
-        const raycaster = new THREE.Raycaster(
-            projectile.mesh.position.clone().sub(projectile.velocity), // Start from previous position
-            projectile.velocity.clone().normalize(),
-            0, // Near
-            projectile.velocity.length() * 1.5 // Far (slightly more than movement distance)
-        );
-        
-        // Check collision with environment objects
-        const environmentIntersects = raycaster.intersectObjects(window.environmentObjects || [], true);
-        if (environmentIntersects.length > 0) {
+        // Check for ground/floor collision
+        if (prevY > 0 && projectile.mesh.position.y <= 0) {
             environmentCollision = true;
-            // Create environment hit effect (sparks/debris, not blood)
-            createEnvironmentHitEffect(environmentIntersects[0].point);
-            console.log("Projectile hit environment at", environmentIntersects[0].point);
+            
+            // Set y position to exactly 0 (ground level)
+            projectile.mesh.position.y = 0;
+            
+            // Create the same environment hit effect as walls/rocks/trees
+            createEnvironmentHitEffect(projectile.mesh.position);
+            console.log("Projectile hit ground at", projectile.mesh.position.x, 0, projectile.mesh.position.z);
+        }
+        
+        // Use raycaster to check for collisions with environment
+        if (!environmentCollision) {
+            const raycaster = new THREE.Raycaster(
+                projectile.mesh.position.clone().sub(projectile.velocity), // Start from previous position
+                projectile.velocity.clone().normalize(),
+                0, // Near
+                projectile.velocity.length() * 1.5 // Far (slightly more than movement distance)
+            );
+            
+            // Check collision with environment objects
+            const environmentIntersects = raycaster.intersectObjects(window.environmentObjects || [], true);
+            if (environmentIntersects.length > 0) {
+                environmentCollision = true;
+                // Create environment hit effect (sparks/debris, not blood)
+                createEnvironmentHitEffect(environmentIntersects[0].point);
+                console.log("Projectile hit environment at", environmentIntersects[0].point);
+            }
         }
         
         // Check for collision with enemies
