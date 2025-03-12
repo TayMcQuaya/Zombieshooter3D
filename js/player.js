@@ -15,9 +15,9 @@ const PLAYER_SPEED = 0.04;
 const WALK_SPEED = 0.02;  // New walking speed (half of original speed)
 const RUN_SPEED = 0.04;   // Run speed (same as original speed)
 const PLAYER_RADIUS = 0.5;
-const JUMP_FORCE = 0.06;  // Reduced from 0.22 for a lower jump
-const GRAVITY = 0.002;    // Reduced from 0.004 for even slower falling
-const AIR_CONTROL = 0.7;  // Air control factor (70% of normal movement speed in air)
+const JUMP_FORCE = 0.06;  // Slightly increased from 0.06 for a better jump feel
+const GRAVITY = 0.002;    // Keeping the same low gravity for floaty feel
+const AIR_CONTROL = 1;  // Increased from 0.7 to give better control while in air
 const MAX_PROJECTILES = 20;
 const PROJECTILE_LIFETIME = 1500;
 const PROJECTILE_SPEED = 0.8;  // Reduced from 2.0 for slower bullets
@@ -788,11 +788,11 @@ function updatePlayer() {
         } 
         // Add a stronger hover effect at the peak of the jump
         else if (velocity.y > -0.02 && velocity.y < 0.02) { // Widened from 0.01 to 0.02
-            velocity.y -= GRAVITY * 0.5; // Reduced from 0.5 for a longer hover effect
+            velocity.y -= GRAVITY * 0.6; // Reduced from 0.5 for a longer hover effect
         }
         // Apply reduced gravity when falling for a slower descent
         else {
-            velocity.y -= GRAVITY * 0.4; // Only 80% of gravity when falling
+            velocity.y -= GRAVITY * 0.6; // Increased from 0.4 for slightly faster falling
         }
     } else {
         // Normal gravity when not jumping
