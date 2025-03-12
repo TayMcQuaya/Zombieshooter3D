@@ -1156,7 +1156,8 @@ function updateProjectiles() {
         const environmentIntersects = raycaster.intersectObjects(window.environmentObjects || [], true);
         if (environmentIntersects.length > 0) {
             environmentCollision = true;
-            createHitEffect(environmentIntersects[0].point);
+            // Create environment hit effect (sparks/debris, not blood)
+            createEnvironmentHitEffect(environmentIntersects[0].point);
             console.log("Projectile hit environment at", environmentIntersects[0].point);
         }
         
@@ -1190,8 +1191,7 @@ function updateProjectiles() {
                         window.hitEnemy(enemy);
                     }
                     
-                    // Create hit effect at the impact point
-                    createHitEffect(projectile.mesh.position.clone());
+                    // No need to create hit effect here - the hitEnemy function already creates blood effects
                     
                     console.log("Enemy hit at distance from player:", distanceFromPlayer, "bullet distance:", distanceFromBullet);
                     break;
@@ -1209,25 +1209,71 @@ function updateProjectiles() {
     }
 }
 
-// Create hit effect
-function createHitEffect(position) {
-    const particleCount = 3;
+// Create hit effect for environment objects (no blood)
+function createEnvironmentHitEffect(position) {
+    const particleCount = 6;
     
     for (let i = 0; i < particleCount; i++) {
+        // Create a small spark/debris particle
         const particle = new THREE.Mesh(
-            new THREE.SphereGeometry(0.05),
-            new THREE.MeshBasicMaterial({ color: 0xFFD700 })
+            new THREE.SphereGeometry(0.03 + Math.random() * 0.02), // Varied sizes
+            new THREE.MeshBasicMaterial({ 
+                color: Math.random() > 0.5 ? 0xCCCCCC : 0x888888, // Gray/dark gray for concrete/metal debris
+                transparent: true,
+                opacity: 0.8
+            })
         );
         
         particle.position.copy(position);
         
+        // Add random velocity away from hit point
+        const velocity = new THREE.Vector3(
+            (Math.random() - 0.5) * 0.1,
+            Math.random() * 0.1,
+            (Math.random() - 0.5) * 0.1
+        );
+        
         scene.add(particle);
         
+        // Remove after a short time
         setTimeout(() => {
             scene.remove(particle);
             particle.geometry.dispose();
             particle.material.dispose();
-        }, 200);
+        }, 400 + Math.random() * 200); // Varied lifetime
+    }
+    
+    // Add a small dust effect
+    const dustGeo = new THREE.SphereGeometry(0.2, 8, 8);
+    const dustMat = new THREE.MeshBasicMaterial({
+        color: 0xBBBBBB,
+        transparent: true,
+        opacity: 0.5
+    });
+    const dust = new THREE.Mesh(dustGeo, dustMat);
+    dust.position.copy(position);
+    scene.add(dust);
+    
+    // Animate the dust cloud expanding and fading
+    let scale = 1.0;
+    let opacity = 0.5;
+    const dustAnim = setInterval(() => {
+        scale += 0.1;
+        opacity -= 0.05;
+        dust.scale.set(scale, scale, scale);
+        dustMat.opacity = opacity;
+        
+        if (opacity <= 0) {
+            clearInterval(dustAnim);
+            scene.remove(dust);
+            dustGeo.dispose();
+            dustMat.dispose();
+        }
+    }, 30);
+    
+    // Play impact sound if available
+    if (typeof playSound === 'function') {
+        playSound('impact');
     }
 }
 
