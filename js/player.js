@@ -585,6 +585,37 @@ function onKeyDown(event) {
         case 'shift':
             moveState.run = true;  // Shift key for running
             break;
+        case 'r':
+            // Get camera's forward direction
+            const direction = new THREE.Vector3(0, 0, -1);
+            direction.applyQuaternion(camera.quaternion);
+            direction.y = 0; // Keep it on the ground plane
+            direction.normalize();
+            
+            // Spawn position is 5 units in front of player
+            const spawnPos = camera.position.clone().add(direction.multiplyScalar(5));
+            
+            // Store original spawn position
+            const originalPosition = spawnPos.clone();
+            
+            // Override enemy spawn position
+            const originalSpawnEnemy = window.spawnEnemy;
+            window.spawnEnemy = function(type) {
+                const enemy = originalSpawnEnemy(type);
+                if (enemy && enemy.mesh) {
+                    enemy.mesh.position.copy(originalPosition);
+                    enemy.mesh.position.y = 0; // Place on ground
+                    enemy.isSpawning = false; // Make it appear instantly
+                }
+                return enemy;
+            };
+            
+            // Spawn only a tank zombie
+            window.spawnEnemy('tank'); // Use string literal 'tank' to match ZOMBIE_TYPES.TANK
+            
+            // Restore original spawn function
+            window.spawnEnemy = originalSpawnEnemy;
+            break;
         case 'm': // M key for testing moon hit
             console.log("M key pressed - testing moon hit");
             if (typeof window.handleMoonHit === 'function') {

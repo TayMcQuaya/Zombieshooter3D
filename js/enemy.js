@@ -2,8 +2,10 @@
 
 // Enemy properties
 const BASE_ENEMY_SPEED = 0.008; // Base speed for regular zombies
-const PURPLE_ENEMY_SPEED = 0.011; // 20% faster than base speed
+const PURPLE_ENEMY_SPEED = 0.011; // 37.5% faster than base speed
+const TANK_ENEMY_SPEED = 0.005; // 60% of base speed
 const enemyDamage = 1; // One heart of damage
+const TANK_DAMAGE = 2; // Tank zombies deal double damage
 const enemySpawnInterval = 5000; // 5 seconds between wave checks
 const zombieColors = [0x50FF50, 0x80FF80, 0x40FF40]; // Brighter, more visible greens
 const ATTACK_COOLDOWN = 1500; // 1.5 seconds between attacks
@@ -14,7 +16,8 @@ const MAX_ENEMIES = 15;
 // Zombie types
 const ZOMBIE_TYPES = {
     BASE: 'base',
-    PURPLE: 'purple'
+    PURPLE: 'purple',
+    TANK: 'tank'
 };
 
 // Array to track enemies and particles
@@ -103,15 +106,26 @@ function spawnEnemyWave() {
         clearPowerups();
     }
     
-    // Calculate purple zombie count based on wave number
+    // Calculate enemy type distribution based on wave number
     let purpleCount = 0;
+    let tankCount = 0;
+    
     if (waveNumber >= 3) { // Purple zombies start appearing at wave 3
-        // Start with 1 purple zombie, increase by 1 every 2 waves
-        purpleCount = Math.min(1 + Math.floor((waveNumber - 3) / 2), Math.floor(baseEnemyCount / 2));
+        // Calculate purple zombies (25% of total after wave 5, less before)
+        const purplePercentage = waveNumber >= 5 ? 0.25 : 0.15;
+        purpleCount = Math.min(1 + Math.floor((waveNumber - 3) / 2), Math.floor(baseEnemyCount * purplePercentage));
+    }
+    
+    if (waveNumber >= 5) { // Tank zombies start appearing at wave 5
+        // Only 1 tank in earlier waves, max 2 in later waves
+        tankCount = Math.min(1, Math.floor(baseEnemyCount * 0.15));
+        if (waveNumber >= 8) {
+            tankCount = Math.min(2, Math.floor(baseEnemyCount * 0.15));
+        }
     }
     
     // Adjust base zombie count
-    const baseCount = baseEnemyCount - purpleCount;
+    const baseCount = baseEnemyCount - purpleCount - tankCount;
     
     // Spawn enemies with delay
     let spawnIndex = 0;
@@ -146,6 +160,24 @@ function spawnEnemyWave() {
         spawnIndex++;
     }
     
+    // Spawn tank zombies with maximum spacing
+    if (tankCount > 0) {
+        const tankSpacing = Math.floor(spawnIndex / (tankCount + 1));
+        for (let i = 0; i < tankCount; i++) {
+            const tankSpawnIndex = (i + 1) * tankSpacing;
+            setTimeout(() => {
+                if (enemies.length < MAX_ENEMIES) {
+                    spawnEnemy(ZOMBIE_TYPES.TANK);
+                    
+                    // Guaranteed power-up from tank zombies
+                    if (typeof spawnRandomPowerup === 'function') {
+                        spawnRandomPowerup(waveNumber);
+                    }
+                }
+            }, tankSpawnIndex * 1000);
+        }
+    }
+    
     // Play wave sound
     if (typeof playSound === 'function') {
         playSound('wave');
@@ -162,6 +194,11 @@ function spawnEnemy(type = ZOMBIE_TYPES.BASE) {
     // Create zombie body with our detailed zombie skin texture
     const geo = new THREE.BoxGeometry(1, 2, 1);
     
+    // Adjust size for tank zombies
+    if (type === ZOMBIE_TYPES.TANK) {
+        geo.scale(1.5, 1.5, 1.5);
+    }
+    
     // Use our detailed zombie skin texture
     const zombieSkinTexture = createZombieSkinTexture(type);
     
@@ -171,8 +208,9 @@ function spawnEnemy(type = ZOMBIE_TYPES.BASE) {
         bumpMap: zombieSkinTexture,
         bumpScale: 0.05,
         shininess: 0,
-        emissive: new THREE.Color(type === ZOMBIE_TYPES.PURPLE ? 0x300030 : 0x003300),
-        emissiveIntensity: type === ZOMBIE_TYPES.PURPLE ? 0.3 : 0.2
+        emissive: new THREE.Color(getZombieEmissiveColor(type)),
+        emissiveIntensity: type === ZOMBIE_TYPES.TANK ? 0.4 : 
+                          type === ZOMBIE_TYPES.PURPLE ? 0.3 : 0.2
     });
     
     const mesh = new THREE.Mesh(geo, mat);
@@ -180,10 +218,13 @@ function spawnEnemy(type = ZOMBIE_TYPES.BASE) {
     mesh.receiveShadow = true;
     
     // Create zombie face with our detailed zombie face texture
-    const faceGeo = new THREE.PlaneGeometry(0.8, 0.8);
+    const faceGeo = new THREE.PlaneGeometry(
+        type === ZOMBIE_TYPES.TANK ? 1.2 : 0.8, 
+        type === ZOMBIE_TYPES.TANK ? 1.2 : 0.8
+    );
     
     // Use our detailed zombie face texture
-    const faceTexture = createZombieFaceTexture();
+    const faceTexture = createZombieFaceTexture(type);
     
     const faceMat = new THREE.MeshBasicMaterial({
         map: faceTexture,
@@ -192,49 +233,65 @@ function spawnEnemy(type = ZOMBIE_TYPES.BASE) {
     const face = new THREE.Mesh(faceGeo, faceMat);
     
     // Position face on front of zombie
-    face.position.z = 0.51;
-    face.position.y = 0.5;
+    face.position.z = type === ZOMBIE_TYPES.TANK ? 0.8 : 0.51; // Move Tank face more forward, keep others at original position
+    face.position.y = type === ZOMBIE_TYPES.TANK ? 0.85 : 0.5; // Lower Tank face more, keep others at original position
     mesh.add(face);
     
     // Add limbs with the same zombie skin texture
     
     // Arms
-    const armGeo = new THREE.BoxGeometry(0.25, 0.8, 0.25);
+    const armGeo = new THREE.BoxGeometry(
+        type === ZOMBIE_TYPES.TANK ? 0.4 : 0.25,
+        type === ZOMBIE_TYPES.TANK ? 1.2 : 0.8,
+        type === ZOMBIE_TYPES.TANK ? 0.4 : 0.25
+    );
     
     // Left arm - positioned extended forward
     const leftArm = new THREE.Mesh(armGeo, mat);
-    leftArm.position.x = -0.6;
-    leftArm.position.y = 0;
+    leftArm.position.x = type === ZOMBIE_TYPES.TANK ? -0.9 : -0.6;
+    leftArm.position.y = type === ZOMBIE_TYPES.TANK ? 0.2 : 0;
     // Rotate arm to extend forward
     leftArm.rotation.z = Math.random() * 0.2 - 0.1; // Slight random Z rotation
     leftArm.rotation.x = -Math.PI / 2; // Rotate forward by 90 degrees (straight forward)
-    leftArm.position.z = 0.4; // Move forward
+    leftArm.position.z = type === ZOMBIE_TYPES.TANK ? 0.6 : 0.4; // Move forward
     leftArm.castShadow = true;
     mesh.add(leftArm);
     
     // Right arm - positioned extended forward
     const rightArm = new THREE.Mesh(armGeo, mat);
-    rightArm.position.x = 0.6;
-    rightArm.position.y = 0;
+    rightArm.position.x = type === ZOMBIE_TYPES.TANK ? 0.9 : 0.6;
+    rightArm.position.y = type === ZOMBIE_TYPES.TANK ? 0.2 : 0;
     // Rotate arm to extend forward
     rightArm.rotation.z = Math.random() * 0.2 - 0.1; // Slight random Z rotation
     rightArm.rotation.x = -Math.PI / 2; // Rotate forward by 90 degrees (straight forward)
-    rightArm.position.z = 0.4; // Move forward
+    rightArm.position.z = type === ZOMBIE_TYPES.TANK ? 0.6 : 0.4; // Move forward
     rightArm.castShadow = true;
     mesh.add(rightArm);
     
     // Legs
-    const legGeo = new THREE.BoxGeometry(0.25, 0.8, 0.25);
+    const legGeo = new THREE.BoxGeometry(
+        type === ZOMBIE_TYPES.TANK ? 0.4 : 0.25,
+        type === ZOMBIE_TYPES.TANK ? 1.2 : 0.8,
+        type === ZOMBIE_TYPES.TANK ? 0.4 : 0.25
+    );
     
     // Left leg
     const leftLeg = new THREE.Mesh(legGeo, mat);
-    leftLeg.position.set(-0.2, -1, 0);
+    leftLeg.position.set(
+        type === ZOMBIE_TYPES.TANK ? -0.3 : -0.2,
+        type === ZOMBIE_TYPES.TANK ? -1.5 : -1,
+        0
+    );
     leftLeg.castShadow = true;
     mesh.add(leftLeg);
     
     // Right leg
     const rightLeg = new THREE.Mesh(legGeo, mat);
-    rightLeg.position.set(0.2, -1, 0);
+    rightLeg.position.set(
+        type === ZOMBIE_TYPES.TANK ? 0.3 : 0.2,
+        type === ZOMBIE_TYPES.TANK ? -1.5 : -1,
+        0
+    );
     rightLeg.castShadow = true;
     mesh.add(rightLeg);
     
@@ -253,8 +310,9 @@ function spawnEnemy(type = ZOMBIE_TYPES.BASE) {
     
     const enemy = {
         mesh: mesh,
-        health: type === ZOMBIE_TYPES.PURPLE ? 3 : 5,  // Purple zombies: 3 hits, Base zombies: 5 hits
+        health: getZombieHealth(type),
         type: type,
+        damage: type === ZOMBIE_TYPES.TANK ? TANK_DAMAGE : enemyDamage,
         lastHit: 0,
         isHit: false,
         lastAttack: 0,
@@ -290,6 +348,30 @@ function spawnEnemy(type = ZOMBIE_TYPES.BASE) {
     }
     
     console.log("Spawned zombie with health:", enemy.health);
+}
+
+// Helper function to get zombie health based on type
+function getZombieHealth(type) {
+    switch(type) {
+        case ZOMBIE_TYPES.TANK:
+            return 8;
+        case ZOMBIE_TYPES.PURPLE:
+            return 3;
+        default:
+            return 5;
+    }
+}
+
+// Helper function to get zombie emissive color based on type
+function getZombieEmissiveColor(type) {
+    switch(type) {
+        case ZOMBIE_TYPES.TANK:
+            return 0x300000; // Red glow
+        case ZOMBIE_TYPES.PURPLE:
+            return 0x300030; // Purple glow
+        default:
+            return 0x003300; // Green glow
+    }
 }
 
 // Hit enemy (reduce health)
@@ -483,7 +565,9 @@ function updateEnemies() {
             const previousPosition = enemy.mesh.position.clone();
             
             // Move towards player with type-specific speed
-            const speed = enemy.type === ZOMBIE_TYPES.PURPLE ? PURPLE_ENEMY_SPEED : BASE_ENEMY_SPEED;
+            const speed = enemy.type === ZOMBIE_TYPES.PURPLE ? PURPLE_ENEMY_SPEED :
+                         enemy.type === ZOMBIE_TYPES.TANK ? TANK_ENEMY_SPEED :
+                         BASE_ENEMY_SPEED;
             enemy.mesh.position.add(directionToPlayer.multiplyScalar(speed));
             enemy.mesh.position.y = enemy.targetY;
             
@@ -546,10 +630,13 @@ function updateEnemies() {
                 }
             }
             
-            // Check for player attack
+            // Check for player attack with type-specific damage
             if (!enemy.isSpawning && enemy.mesh.position.distanceTo(camera.position) < 2) {
                 if (now - enemy.lastAttack >= ATTACK_COOLDOWN) {
-                    damagePlayer();
+                    if (typeof damagePlayer === 'function') {
+                        const damage = enemy.type === ZOMBIE_TYPES.TANK ? 2 : 1;
+                        damagePlayer(damage); // Use type-specific damage
+                    }
                     enemy.lastAttack = now;
                     
                     // Trigger attack animation if not already attacking
@@ -1399,6 +1486,10 @@ function createZombieSkinTexture(type = ZOMBIE_TYPES.BASE) {
         r: 140 + Math.floor(Math.random() * 30),
         g: 80 + Math.floor(Math.random() * 20),
         b: 150 + Math.floor(Math.random() * 30)
+    } : type === ZOMBIE_TYPES.TANK ? {
+        r: 180 + Math.floor(Math.random() * 30),
+        g: 60 + Math.floor(Math.random() * 20),
+        b: 60 + Math.floor(Math.random() * 20)
     } : {
         r: 100 + Math.floor(Math.random() * 30),
         g: 150 + Math.floor(Math.random() * 30),
@@ -1524,7 +1615,7 @@ function createZombieSkinTexture(type = ZOMBIE_TYPES.BASE) {
 }
 
 // Create a detailed zombie face texture
-function createZombieFaceTexture() {
+function createZombieFaceTexture(type = ZOMBIE_TYPES.BASE) {
     const canvas = document.createElement('canvas');
     canvas.width = 512;
     canvas.height = 512;
@@ -1533,8 +1624,16 @@ function createZombieFaceTexture() {
     // Clear canvas
     ctx.clearRect(0, 0, 512, 512);
     
-    // Base zombie skin color - sickly green/gray
-    const baseColor = {
+    // Base zombie skin color based on type
+    const baseColor = type === ZOMBIE_TYPES.PURPLE ? {
+        r: 140 + Math.floor(Math.random() * 30),
+        g: 80 + Math.floor(Math.random() * 20),
+        b: 150 + Math.floor(Math.random() * 30)
+    } : type === ZOMBIE_TYPES.TANK ? {
+        r: 180 + Math.floor(Math.random() * 30),
+        g: 60 + Math.floor(Math.random() * 20),
+        b: 60 + Math.floor(Math.random() * 20)
+    } : {
         r: 100 + Math.floor(Math.random() * 30),
         g: 130 + Math.floor(Math.random() * 30),
         b: 80 + Math.floor(Math.random() * 20)
