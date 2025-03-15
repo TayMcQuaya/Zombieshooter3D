@@ -1,7 +1,8 @@
 // enemy.js - Enemy spawning, movement, and collision
 
 // Enemy properties
-const enemySpeed = 0.008; // Reduced from 0.015 for slower zombies
+const BASE_ENEMY_SPEED = 0.008; // Base speed for regular zombies
+const PURPLE_ENEMY_SPEED = 0.011; // 20% faster than base speed
 const enemyDamage = 1; // One heart of damage
 const enemySpawnInterval = 5000; // 5 seconds between wave checks
 const zombieColors = [0x50FF50, 0x80FF80, 0x40FF40]; // Brighter, more visible greens
@@ -9,6 +10,12 @@ const ATTACK_COOLDOWN = 1500; // 1.5 seconds between attacks
 const SPAWN_ANIMATION_DURATION = 2000; // 2 seconds to emerge
 const MAX_PARTICLES = 50;
 const MAX_ENEMIES = 15;
+
+// Zombie types
+const ZOMBIE_TYPES = {
+    BASE: 'base',
+    PURPLE: 'purple'
+};
 
 // Array to track enemies and particles
 let enemies = [];
@@ -89,25 +96,54 @@ function spawnEnemyWave() {
     waveInProgress = true;
     
     // Calculate number of enemies (capped at MAX_ENEMIES)
-    const enemyCount = Math.min(3 + Math.floor(waveNumber / 2), MAX_ENEMIES);
+    const baseEnemyCount = Math.min(3 + Math.floor(waveNumber / 2), MAX_ENEMIES);
     
     // Clear any remaining power-ups from previous wave
     if (typeof clearPowerups === 'function') {
         clearPowerups();
     }
     
+    // Calculate purple zombie count based on wave number
+    let purpleCount = 0;
+    if (waveNumber >= 3) { // Purple zombies start appearing at wave 3
+        // Start with 1 purple zombie, increase by 1 every 2 waves
+        purpleCount = Math.min(1 + Math.floor((waveNumber - 3) / 2), Math.floor(baseEnemyCount / 2));
+    }
+    
+    // Adjust base zombie count
+    const baseCount = baseEnemyCount - purpleCount;
+    
     // Spawn enemies with delay
-    for (let i = 0; i < enemyCount; i++) {
+    let spawnIndex = 0;
+    
+    // Spawn base zombies
+    for (let i = 0; i < baseCount; i++) {
         setTimeout(() => {
             if (enemies.length < MAX_ENEMIES) {
-                spawnEnemy();
+                spawnEnemy(ZOMBIE_TYPES.BASE);
                 
                 // Chance to spawn a power-up with each enemy
-                if (typeof spawnRandomPowerup === 'function' && i % 3 === 0) {
+                if (typeof spawnRandomPowerup === 'function' && spawnIndex % 3 === 0) {
                     spawnRandomPowerup(waveNumber);
                 }
             }
-        }, i * 1000);
+        }, spawnIndex * 1000);
+        spawnIndex++;
+    }
+    
+    // Spawn purple zombies
+    for (let i = 0; i < purpleCount; i++) {
+        setTimeout(() => {
+            if (enemies.length < MAX_ENEMIES) {
+                spawnEnemy(ZOMBIE_TYPES.PURPLE);
+                
+                // Higher chance to spawn power-ups from purple zombies
+                if (typeof spawnRandomPowerup === 'function' && Math.random() < 0.4) {
+                    spawnRandomPowerup(waveNumber);
+                }
+            }
+        }, spawnIndex * 1000);
+        spawnIndex++;
     }
     
     // Play wave sound
@@ -122,12 +158,12 @@ function spawnEnemyWave() {
 }
 
 // Spawn a single enemy
-function spawnEnemy() {
+function spawnEnemy(type = ZOMBIE_TYPES.BASE) {
     // Create zombie body with our detailed zombie skin texture
     const geo = new THREE.BoxGeometry(1, 2, 1);
     
     // Use our detailed zombie skin texture
-    const zombieSkinTexture = createZombieSkinTexture();
+    const zombieSkinTexture = createZombieSkinTexture(type);
     
     // Create a more realistic material with the texture
     const mat = new THREE.MeshPhongMaterial({ 
@@ -135,8 +171,8 @@ function spawnEnemy() {
         bumpMap: zombieSkinTexture,
         bumpScale: 0.05,
         shininess: 0,
-        emissive: new THREE.Color(0x003300),
-        emissiveIntensity: 0.2
+        emissive: new THREE.Color(type === ZOMBIE_TYPES.PURPLE ? 0x300030 : 0x003300),
+        emissiveIntensity: type === ZOMBIE_TYPES.PURPLE ? 0.3 : 0.2
     });
     
     const mesh = new THREE.Mesh(geo, mat);
@@ -217,7 +253,8 @@ function spawnEnemy() {
     
     const enemy = {
         mesh: mesh,
-        health: 3,  // Zombie dies after 3 hits
+        health: type === ZOMBIE_TYPES.PURPLE ? 3 : 5,  // Purple zombies: 3 hits, Base zombies: 5 hits
+        type: type,
         lastHit: 0,
         isHit: false,
         lastAttack: 0,
@@ -228,7 +265,7 @@ function spawnEnemy() {
         originalMaterialProps: {
             color: mat.color.getHex(),
             emissive: mat.emissive.getHex(),
-            emissiveIntensity: mat.emissiveIntensity || 0.2
+            emissiveIntensity: mat.emissiveIntensity
         },
         // Store references to limbs for animation
         leftArm: leftArm,
@@ -445,8 +482,9 @@ function updateEnemies() {
             // Store the current position before moving
             const previousPosition = enemy.mesh.position.clone();
             
-            // Move towards player
-            enemy.mesh.position.add(directionToPlayer.multiplyScalar(enemySpeed));
+            // Move towards player with type-specific speed
+            const speed = enemy.type === ZOMBIE_TYPES.PURPLE ? PURPLE_ENEMY_SPEED : BASE_ENEMY_SPEED;
+            enemy.mesh.position.add(directionToPlayer.multiplyScalar(speed));
             enemy.mesh.position.y = enemy.targetY;
             
             // Look at player
@@ -481,7 +519,7 @@ function updateEnemies() {
                 }
                 
                 // Apply a small side movement
-                enemy.mesh.position.add(sideStep.multiplyScalar(enemySpeed * 0.5));
+                enemy.mesh.position.add(sideStep.multiplyScalar(speed * 0.5));
             }
             
             // Simple environment collision check (less frequent)
@@ -1350,14 +1388,18 @@ function createHitEffect(position, color) {
 }
 
 // Create a detailed zombie skin texture
-function createZombieSkinTexture() {
+function createZombieSkinTexture(type = ZOMBIE_TYPES.BASE) {
     const canvas = document.createElement('canvas');
     canvas.width = 512;
     canvas.height = 512;
     const ctx = canvas.getContext('2d');
     
-    // Base zombie skin color - sickly green
-    const baseColor = {
+    // Base color based on zombie type
+    const baseColor = type === ZOMBIE_TYPES.PURPLE ? {
+        r: 140 + Math.floor(Math.random() * 30),
+        g: 80 + Math.floor(Math.random() * 20),
+        b: 150 + Math.floor(Math.random() * 30)
+    } : {
         r: 100 + Math.floor(Math.random() * 30),
         g: 150 + Math.floor(Math.random() * 30),
         b: 80 + Math.floor(Math.random() * 20)
