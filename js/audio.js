@@ -138,7 +138,8 @@ function initZombieSoundSystem() {
 
 // Update zombie sounds - periodically play ambient sounds from alive zombies
 function updateZombieSounds() {
-    if (!soundEnabled || !window.enemies || window.enemies.length === 0) return;
+    // Check if sound is enabled, if there are enemies, and if the game is not paused
+    if (!soundEnabled || !window.enemies || window.enemies.length === 0 || (typeof window.gamePaused !== 'undefined' && window.gamePaused)) return;
     
     const now = Date.now();
     
@@ -238,6 +239,12 @@ function playBackgroundMusic() {
 // Generic sound player function
 function playSound(soundType) {
     if (!soundEnabled) return;
+    
+    // Check if game is paused for zombie-related sounds
+    if ((typeof window.gamePaused !== 'undefined' && window.gamePaused) && 
+        (soundType === 'zombieAttack' || soundType === 'zombieSpawn' || soundType === 'hit')) {
+        return;
+    }
     
     switch(soundType) {
         case 'shoot':

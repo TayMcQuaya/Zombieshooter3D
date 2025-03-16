@@ -66,6 +66,17 @@ function init() {
                 "moonGlow:", !!window.moonGlow, 
                 "handleMoonHit:", !!window.handleMoonHit);
     
+    // Create clock for timing
+    clock = new THREE.Clock();
+    
+    // Initialize game state
+    gameActive = false;
+    gamePaused = false;
+    
+    // Make game state globally accessible
+    window.gameActive = gameActive;
+    window.gamePaused = gamePaused;
+    
     // Initialize environment first (which will set up lighting)
     window.environmentObjects = [];
     createEnvironment();
@@ -884,6 +895,9 @@ function togglePause() {
     gamePaused = !gamePaused;
     console.log("Game pause toggled:", gamePaused);
     
+    // Make pause state globally accessible
+    window.gamePaused = gamePaused;
+    
     if (gamePaused) {
         // Pause the game
         document.exitPointerLock();
@@ -937,6 +951,8 @@ function initPauseMenu() {
             
             // First update game state
             gamePaused = false;
+            window.gamePaused = false; // Update global variable
+            
             hidePauseMenu();
             document.body.classList.add('game-active');
             
@@ -1077,6 +1093,10 @@ function startGame() {
     // Set game as active
     gameActive = true;
     gamePaused = false; // Ensure game starts unpaused
+    
+    // Update global game state variables
+    window.gameActive = gameActive;
+    window.gamePaused = gamePaused;
     
     // Add game-active class to body
     document.body.classList.add('game-active');
