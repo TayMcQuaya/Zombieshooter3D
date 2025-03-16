@@ -760,6 +760,10 @@ function addEnvironmentalObjects() {
         createRock(x, 0, z);
     }
     
+    // Add weapon bench at the left side wall (x: -22)
+    // Player starts facing negative Z, so we'll place it at a good Z position
+    createWeaponBench(-22, 0, 0); // Positioned at the left wall (wall is at radius 25)
+    
     console.log("Environmental objects added");
 }
 
@@ -862,6 +866,117 @@ function createRock(x, y, z) {
     
     // Debug log to verify rock is added to environment objects
     console.log("Created rock with radius:", size * 1.2, "at position:", x, y, z);
+}
+
+// Create a weapon bench for collecting new weapons
+function createWeaponBench(x, y, z) {
+    console.log("Creating weapon bench at", x, y, z);
+    
+    // Create bench group to hold all parts
+    const benchGroup = new THREE.Group();
+    benchGroup.position.set(x, y, z);
+    
+    // Create bench top (wooden plank)
+    const benchTopGeo = new THREE.BoxGeometry(2, 0.1, 0.8);
+    const woodTexture = createWoodTexture();
+    const benchTopMat = new THREE.MeshPhongMaterial({ 
+        color: 0x8B4513, 
+        map: woodTexture,
+        specular: 0x222222,
+        shininess: 15
+    });
+    const benchTop = new THREE.Mesh(benchTopGeo, benchTopMat);
+    benchTop.position.set(0, 0.6, 0);
+    benchTop.castShadow = true;
+    benchTop.receiveShadow = true;
+    benchGroup.add(benchTop);
+    
+    // Create bench legs
+    const legGeo = new THREE.BoxGeometry(0.1, 0.6, 0.1);
+    const legMat = new THREE.MeshPhongMaterial({ 
+        color: 0x5C4033,
+        map: woodTexture,
+        specular: 0x222222,
+        shininess: 10
+    });
+    
+    // Front left leg
+    const legFL = new THREE.Mesh(legGeo, legMat);
+    legFL.position.set(-0.9, 0.3, 0.3);
+    legFL.castShadow = true;
+    legFL.receiveShadow = true;
+    benchGroup.add(legFL);
+    
+    // Front right leg
+    const legFR = new THREE.Mesh(legGeo, legMat);
+    legFR.position.set(0.9, 0.3, 0.3);
+    legFR.castShadow = true;
+    legFR.receiveShadow = true;
+    benchGroup.add(legFR);
+    
+    // Back left leg
+    const legBL = new THREE.Mesh(legGeo, legMat);
+    legBL.position.set(-0.9, 0.3, -0.3);
+    legBL.castShadow = true;
+    legBL.receiveShadow = true;
+    benchGroup.add(legBL);
+    
+    // Back right leg
+    const legBR = new THREE.Mesh(legGeo, legMat);
+    legBR.position.set(0.9, 0.3, -0.3);
+    legBR.castShadow = true;
+    legBR.receiveShadow = true;
+    benchGroup.add(legBR);
+    
+    // Create a target for the spotlight
+    const spotlightTarget = new THREE.Object3D();
+    spotlightTarget.position.set(x, y + 0.6, z); // Position at the bench top
+    scene.add(spotlightTarget);
+    
+    // Add a spotlight above the bench to make it noticeable - MORE INTENSE
+    const spotLight = new THREE.SpotLight(0xFFFFAA, 3.0); // Increased intensity from 1.5 to 3.0
+    spotLight.position.set(x, y + 4, z); // Position relative to bench in world space
+    spotLight.target = spotlightTarget;
+    spotLight.angle = 0.4; // Wider angle for more area coverage
+    spotLight.penumbra = 0.3; // Softer edges
+    spotLight.decay = 1.2; // Reduced decay for more intensity at distance
+    spotLight.distance = 15; // Increased distance from 10 to 15
+    spotLight.castShadow = true;
+    spotLight.shadow.bias = -0.0001;
+    spotLight.shadow.mapSize.width = 1024;
+    spotLight.shadow.mapSize.height = 1024;
+    scene.add(spotLight); // Add to scene instead of benchGroup for better lighting
+    
+    // Add a point light on the bench for additional glow - MORE INTENSE
+    const pointLight = new THREE.PointLight(0xFFCC66, 2.5, 8); // Increased intensity from 1.2 to 2.5 and range from 5 to 8
+    pointLight.position.set(x, y + 0.9, z); // Position relative to bench in world space
+    pointLight.castShadow = false; // No need for shadow from this light
+    scene.add(pointLight); // Add to scene instead of benchGroup for better lighting
+    
+    // Add a subtle ambient light around the bench area - MORE INTENSE
+    const ambientLight = new THREE.PointLight(0xFFEECC, 1.2, 12); // Increased intensity from 0.6 to 1.2 and range from 8 to 12
+    ambientLight.position.set(0, 1.5, 0);
+    benchGroup.add(ambientLight);
+    
+    // Rotate the bench to face toward the player (center of the arena)
+    // Since the bench is at the left wall (negative X), it should face right (positive X)
+    benchGroup.lookAt(new THREE.Vector3(0, benchGroup.position.y, 0));
+    
+    // Add collision data
+    benchGroup.userData = {
+        isCollidable: true,
+        radius: 1.2,
+        isWeaponBench: true // Flag to identify this as a weapon bench
+    };
+    
+    // Add to scene
+    scene.add(benchGroup);
+    
+    // Add to environment objects
+    window.environmentObjects.push(benchGroup);
+    
+    console.log("Weapon bench created");
+    return benchGroup;
 }
 
 // Handle window resize
