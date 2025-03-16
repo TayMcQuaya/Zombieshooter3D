@@ -284,6 +284,15 @@ function playSound(soundType) {
         case 'zombieSpawn':
             playZombieSpawnSound();
             break;
+        case 'weaponSwitch':
+            // Create a metallic sliding sound for weapon switching
+            const switchSound = new Howl({
+                src: ['assets/sounds/UI sfx/UI.wav'],
+                volume: 0.4,
+                rate: 1.2 // Slightly faster playback for a snappier sound
+            });
+            switchSound.play();
+            break;
         default:
             console.warn('Unknown sound type:', soundType);
     }
