@@ -18,7 +18,7 @@ const MAX_ENEMIES = 15;
 // Ranged zombie properties
 const RANGED_ATTACK_RANGE = 25; // Maximum distance for ranged attacks
 const RANGED_PREFERRED_DISTANCE = 15; // Distance ranged zombies try to maintain
-const RANGED_PROJECTILE_SPEED = 0.5; // Speed of ranged zombie projectiles
+const RANGED_PROJECTILE_SPEED = 0.08; // Speed of ranged zombie projectiles (reduced from 0.5)
 const RANGED_PROJECTILE_LIFETIME = 10000; // 10 seconds lifetime for projectiles
 
 // Zombie types
@@ -122,27 +122,39 @@ function spawnEnemyWave() {
     let tankCount = 0;
     let rangedCount = 0;
     
+    // Progressive introduction of zombie types:
+    // Waves 1-2: Only base zombies
+    // Waves 3-4: Base + purple zombies
+    // Waves 5-7: Base + purple + ranged zombies
+    // Waves 8+: All zombie types
+    
     if (waveNumber >= 3) { // Purple zombies start appearing at wave 3
-        // Calculate purple zombies (25% of total after wave 5, less before)
-        const purplePercentage = waveNumber >= 5 ? 0.25 : 0.15;
-        purpleCount = Math.min(1 + Math.floor((waveNumber - 3) / 2), Math.floor(baseEnemyCount * purplePercentage));
+        // Calculate purple zombies (gradually increasing percentage)
+        const purplePercentage = Math.min(0.3, 0.1 + (waveNumber - 3) * 0.05);
+        purpleCount = Math.floor(baseEnemyCount * purplePercentage);
     }
     
-    if (waveNumber >= 5) { // Tank zombies start appearing at wave 5
-        // Only 1 tank in earlier waves, max 2 in later waves
-        tankCount = Math.min(1, Math.floor(baseEnemyCount * 0.15));
-        if (waveNumber >= 8) {
-            tankCount = Math.min(2, Math.floor(baseEnemyCount * 0.15));
-        }
+    if (waveNumber >= 5) { // Ranged (yellow) zombies start appearing at wave 5
+        // Calculate ranged zombies (gradually increasing percentage)
+        const rangedPercentage = Math.min(0.25, 0.05 + (waveNumber - 5) * 0.05);
+        rangedCount = Math.floor(baseEnemyCount * rangedPercentage);
     }
     
-    if (waveNumber >= 4) { // Ranged zombies start appearing at wave 4
-        // Start with 1 ranged zombie, gradually increase
-        rangedCount = Math.min(1 + Math.floor((waveNumber - 4) / 3), Math.floor(baseEnemyCount * 0.2));
+    if (waveNumber >= 8) { // Tank (red) zombies start appearing at wave 8
+        // Calculate tank zombies (limited percentage, max 2 tanks)
+        const tankPercentage = Math.min(0.15, 0.05 + (waveNumber - 8) * 0.02);
+        tankCount = Math.min(2, Math.floor(baseEnemyCount * tankPercentage));
     }
     
-    // Adjust base zombie count
-    const baseCount = baseEnemyCount - purpleCount - tankCount - rangedCount;
+    // Ensure at least one of each unlocked type appears after their introduction wave
+    if (waveNumber >= 3 && purpleCount === 0) purpleCount = 1;
+    if (waveNumber >= 5 && rangedCount === 0) rangedCount = 1;
+    if (waveNumber >= 8 && tankCount === 0) tankCount = 1;
+    
+    // Adjust base zombie count to maintain total
+    const baseCount = Math.max(1, baseEnemyCount - purpleCount - tankCount - rangedCount);
+    
+    console.log(`Wave ${waveNumber}: ${baseCount} base, ${purpleCount} purple, ${rangedCount} ranged, ${tankCount} tank zombies`);
     
     // Spawn enemies with delay
     let spawnIndex = 0;
@@ -428,11 +440,11 @@ function spawnEnemy(type = ZOMBIE_TYPES.BASE) {
 function getZombieHealth(type) {
     switch(type) {
         case ZOMBIE_TYPES.TANK:
-            return 8;
+            return 15; // Increased from 8 to 15
         case ZOMBIE_TYPES.PURPLE:
             return 3;
         case ZOMBIE_TYPES.RANGED:
-            return 15; // Ranged zombies have more health
+            return 6; // Reduced from 15 to 6
         default:
             return 5;
     }
@@ -659,25 +671,32 @@ function updateEnemies() {
                     camera.position.z
                 ));
                 
-                // If too close to player, move away
-                if (distanceToPlayer < RANGED_PREFERRED_DISTANCE - 2) {
-                    // Move away from player
-                    const moveAwayDirection = directionToPlayer.clone().multiplyScalar(-1);
-                    enemy.mesh.position.add(moveAwayDirection.multiplyScalar(RANGED_ENEMY_SPEED));
-                    enemy.mesh.position.y = enemy.targetY;
-                }
-                // If too far from player, move closer
-                else if (distanceToPlayer > RANGED_PREFERRED_DISTANCE + 2) {
+                // If too far from player, move closer until preferred distance
+                if (distanceToPlayer > RANGED_PREFERRED_DISTANCE + 2) {
                     // Move towards player
                     enemy.mesh.position.add(directionToPlayer.multiplyScalar(RANGED_ENEMY_SPEED));
                     enemy.mesh.position.y = enemy.targetY;
                 }
-                // If at a good distance, perform ranged attack if cooldown allows
-                else if (distanceToPlayer <= RANGED_ATTACK_RANGE) {
+                // If at a good distance and player is not too close, perform ranged attack if cooldown allows
+                else if (distanceToPlayer <= RANGED_ATTACK_RANGE && distanceToPlayer > 3) {
                     if (now - enemy.lastAttack >= RANGED_ATTACK_COOLDOWN) {
                         // Perform ranged attack
                         performRangedAttack(enemy);
                         enemy.lastAttack = now;
+                    }
+                }
+                // If player is very close, use melee attack instead of ranged
+                else if (distanceToPlayer <= 3) {
+                    if (now - enemy.lastAttack >= ATTACK_COOLDOWN) {
+                        if (typeof damagePlayer === 'function') {
+                            damagePlayer(enemy.damage); // Use standard damage
+                        }
+                        enemy.lastAttack = now;
+                        
+                        // Trigger attack animation if not already attacking
+                        if (!enemy.isAttacking) {
+                            animateZombieAttack(enemy);
+                        }
                     }
                 }
             } 
