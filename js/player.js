@@ -610,8 +610,11 @@ function onKeyDown(event) {
                 return enemy;
             };
             
-            // Spawn only a tank zombie
-            window.spawnEnemy('tank'); // Use string literal 'tank' to match ZOMBIE_TYPES.TANK
+            // Spawn all zombie types
+            window.spawnEnemy('base'); // Spawn a base zombie
+            window.spawnEnemy('purple'); // Spawn a purple zombie
+            window.spawnEnemy('ranged'); // Spawn a ranged zombie
+            window.spawnEnemy('tank'); // Spawn a tank zombie
             
             // Restore original spawn function
             window.spawnEnemy = originalSpawnEnemy;

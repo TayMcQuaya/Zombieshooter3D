@@ -4,25 +4,35 @@
 const BASE_ENEMY_SPEED = 0.008; // Base speed for regular zombies
 const PURPLE_ENEMY_SPEED = 0.011; // 37.5% faster than base speed
 const TANK_ENEMY_SPEED = 0.005; // 60% of base speed
+const RANGED_ENEMY_SPEED = 0.009; // Slightly faster than base but slower than purple
 const enemyDamage = 1; // One heart of damage
 const TANK_DAMAGE = 2; // Tank zombies deal double damage
 const enemySpawnInterval = 5000; // 5 seconds between wave checks
 const zombieColors = [0x50FF50, 0x80FF80, 0x40FF40]; // Brighter, more visible greens
 const ATTACK_COOLDOWN = 1500; // 1.5 seconds between attacks
+const RANGED_ATTACK_COOLDOWN = 3000; // 3 seconds between ranged attacks
 const SPAWN_ANIMATION_DURATION = 2000; // 2 seconds to emerge
 const MAX_PARTICLES = 50;
 const MAX_ENEMIES = 15;
+
+// Ranged zombie properties
+const RANGED_ATTACK_RANGE = 25; // Maximum distance for ranged attacks
+const RANGED_PREFERRED_DISTANCE = 15; // Distance ranged zombies try to maintain
+const RANGED_PROJECTILE_SPEED = 0.5; // Speed of ranged zombie projectiles
+const RANGED_PROJECTILE_LIFETIME = 10000; // 10 seconds lifetime for projectiles
 
 // Zombie types
 const ZOMBIE_TYPES = {
     BASE: 'base',
     PURPLE: 'purple',
-    TANK: 'tank'
+    TANK: 'tank',
+    RANGED: 'ranged'
 };
 
 // Array to track enemies and particles
 let enemies = [];
 let particles = [];
+let zombieProjectiles = []; // Array to track zombie projectiles
 let enemySpawner = null;
 let waveNumber = 0;
 let waveInProgress = false;
@@ -31,6 +41,7 @@ let waveInProgress = false;
 function initEnemies() {
     enemies = [];
     particles = [];
+    zombieProjectiles = []; // Initialize zombie projectiles array
     waveNumber = 0;
     waveInProgress = false;
     
@@ -109,6 +120,7 @@ function spawnEnemyWave() {
     // Calculate enemy type distribution based on wave number
     let purpleCount = 0;
     let tankCount = 0;
+    let rangedCount = 0;
     
     if (waveNumber >= 3) { // Purple zombies start appearing at wave 3
         // Calculate purple zombies (25% of total after wave 5, less before)
@@ -124,8 +136,13 @@ function spawnEnemyWave() {
         }
     }
     
+    if (waveNumber >= 4) { // Ranged zombies start appearing at wave 4
+        // Start with 1 ranged zombie, gradually increase
+        rangedCount = Math.min(1 + Math.floor((waveNumber - 4) / 3), Math.floor(baseEnemyCount * 0.2));
+    }
+    
     // Adjust base zombie count
-    const baseCount = baseEnemyCount - purpleCount - tankCount;
+    const baseCount = baseEnemyCount - purpleCount - tankCount - rangedCount;
     
     // Spawn enemies with delay
     let spawnIndex = 0;
@@ -158,6 +175,24 @@ function spawnEnemyWave() {
             }
         }, spawnIndex * 1000);
         spawnIndex++;
+    }
+    
+    // Spawn ranged zombies with spacing
+    if (rangedCount > 0) {
+        const rangedSpacing = Math.floor(spawnIndex / (rangedCount + 1));
+        for (let i = 0; i < rangedCount; i++) {
+            const rangedSpawnIndex = (i + 1) * rangedSpacing;
+            setTimeout(() => {
+                if (enemies.length < MAX_ENEMIES) {
+                    spawnEnemy(ZOMBIE_TYPES.RANGED);
+                    
+                    // Chance to spawn power-ups from ranged zombies
+                    if (typeof spawnRandomPowerup === 'function' && Math.random() < 0.3) {
+                        spawnRandomPowerup(waveNumber);
+                    }
+                }
+            }, rangedSpawnIndex * 1000);
+        }
     }
     
     // Spawn tank zombies with maximum spacing
@@ -194,9 +229,11 @@ function spawnEnemy(type = ZOMBIE_TYPES.BASE) {
     // Create zombie body with our detailed zombie skin texture
     const geo = new THREE.BoxGeometry(1, 2, 1);
     
-    // Adjust size for tank zombies
+    // Adjust size for different zombie types
     if (type === ZOMBIE_TYPES.TANK) {
         geo.scale(1.5, 1.5, 1.5);
+    } else if (type === ZOMBIE_TYPES.RANGED) {
+        geo.scale(1.2, 1.4, 1.2); // Slightly larger and taller
     }
     
     // Use our detailed zombie skin texture
@@ -210,7 +247,8 @@ function spawnEnemy(type = ZOMBIE_TYPES.BASE) {
         shininess: 0,
         emissive: new THREE.Color(getZombieEmissiveColor(type)),
         emissiveIntensity: type === ZOMBIE_TYPES.TANK ? 0.4 : 
-                          type === ZOMBIE_TYPES.PURPLE ? 0.3 : 0.2
+                          type === ZOMBIE_TYPES.PURPLE ? 0.3 : 
+                          type === ZOMBIE_TYPES.RANGED ? 0.5 : 0.2
     });
     
     const mesh = new THREE.Mesh(geo, mat);
@@ -219,8 +257,10 @@ function spawnEnemy(type = ZOMBIE_TYPES.BASE) {
     
     // Create zombie face with our detailed zombie face texture
     const faceGeo = new THREE.PlaneGeometry(
-        type === ZOMBIE_TYPES.TANK ? 1.2 : 0.8, 
-        type === ZOMBIE_TYPES.TANK ? 1.2 : 0.8
+        type === ZOMBIE_TYPES.TANK ? 1.2 : 
+        type === ZOMBIE_TYPES.RANGED ? 1.0 : 0.8, 
+        type === ZOMBIE_TYPES.TANK ? 1.2 : 
+        type === ZOMBIE_TYPES.RANGED ? 1.0 : 0.8
     );
     
     // Use our detailed zombie face texture
@@ -233,53 +273,83 @@ function spawnEnemy(type = ZOMBIE_TYPES.BASE) {
     const face = new THREE.Mesh(faceGeo, faceMat);
     
     // Position face on front of zombie
-    face.position.z = type === ZOMBIE_TYPES.TANK ? 0.8 : 0.51; // Move Tank face more forward, keep others at original position
-    face.position.y = type === ZOMBIE_TYPES.TANK ? 0.85 : 0.5; // Lower Tank face more, keep others at original position
+    face.position.z = type === ZOMBIE_TYPES.TANK ? 0.8 : 
+                     type === ZOMBIE_TYPES.RANGED ? 0.6 : 0.51; // Move face forward
+    face.position.y = type === ZOMBIE_TYPES.TANK ? 0.85 : 
+                     type === ZOMBIE_TYPES.RANGED ? 0.7 : 0.5; // Adjust face height
     mesh.add(face);
     
     // Add limbs with the same zombie skin texture
     
     // Arms
     const armGeo = new THREE.BoxGeometry(
-        type === ZOMBIE_TYPES.TANK ? 0.4 : 0.25,
-        type === ZOMBIE_TYPES.TANK ? 1.2 : 0.8,
-        type === ZOMBIE_TYPES.TANK ? 0.4 : 0.25
+        type === ZOMBIE_TYPES.TANK ? 0.4 : 
+        type === ZOMBIE_TYPES.RANGED ? 0.3 : 0.25,
+        type === ZOMBIE_TYPES.TANK ? 1.2 : 
+        type === ZOMBIE_TYPES.RANGED ? 1.0 : 0.8,
+        type === ZOMBIE_TYPES.TANK ? 0.4 : 
+        type === ZOMBIE_TYPES.RANGED ? 0.3 : 0.25
     );
     
     // Left arm - positioned extended forward
     const leftArm = new THREE.Mesh(armGeo, mat);
-    leftArm.position.x = type === ZOMBIE_TYPES.TANK ? -0.9 : -0.6;
-    leftArm.position.y = type === ZOMBIE_TYPES.TANK ? 0.2 : 0;
+    leftArm.position.x = type === ZOMBIE_TYPES.TANK ? -0.9 : 
+                        type === ZOMBIE_TYPES.RANGED ? -0.8 : -0.6;
+    leftArm.position.y = type === ZOMBIE_TYPES.TANK ? 0.2 : 
+                        type === ZOMBIE_TYPES.RANGED ? 0.1 : 0;
     // Rotate arm to extend forward
     leftArm.rotation.z = Math.random() * 0.2 - 0.1; // Slight random Z rotation
-    leftArm.rotation.x = -Math.PI / 2; // Rotate forward by 90 degrees (straight forward)
-    leftArm.position.z = type === ZOMBIE_TYPES.TANK ? 0.6 : 0.4; // Move forward
+    
+    // For ranged zombies, position arms differently to look like they're aiming
+    if (type === ZOMBIE_TYPES.RANGED) {
+        leftArm.rotation.x = -Math.PI / 3; // Angle upward slightly
+        leftArm.position.z = 0.5; // Move forward
+    } else {
+        leftArm.rotation.x = -Math.PI / 2; // Rotate forward by 90 degrees
+        leftArm.position.z = type === ZOMBIE_TYPES.TANK ? 0.6 : 0.4; // Move forward
+    }
+    
     leftArm.castShadow = true;
     mesh.add(leftArm);
     
     // Right arm - positioned extended forward
     const rightArm = new THREE.Mesh(armGeo, mat);
-    rightArm.position.x = type === ZOMBIE_TYPES.TANK ? 0.9 : 0.6;
-    rightArm.position.y = type === ZOMBIE_TYPES.TANK ? 0.2 : 0;
+    rightArm.position.x = type === ZOMBIE_TYPES.TANK ? 0.9 : 
+                         type === ZOMBIE_TYPES.RANGED ? 0.8 : 0.6;
+    rightArm.position.y = type === ZOMBIE_TYPES.TANK ? 0.2 : 
+                         type === ZOMBIE_TYPES.RANGED ? 0.1 : 0;
     // Rotate arm to extend forward
     rightArm.rotation.z = Math.random() * 0.2 - 0.1; // Slight random Z rotation
-    rightArm.rotation.x = -Math.PI / 2; // Rotate forward by 90 degrees (straight forward)
-    rightArm.position.z = type === ZOMBIE_TYPES.TANK ? 0.6 : 0.4; // Move forward
+    
+    // For ranged zombies, position arms differently to look like they're aiming
+    if (type === ZOMBIE_TYPES.RANGED) {
+        rightArm.rotation.x = -Math.PI / 3; // Angle upward slightly
+        rightArm.position.z = 0.5; // Move forward
+    } else {
+        rightArm.rotation.x = -Math.PI / 2; // Rotate forward by 90 degrees
+        rightArm.position.z = type === ZOMBIE_TYPES.TANK ? 0.6 : 0.4; // Move forward
+    }
+    
     rightArm.castShadow = true;
     mesh.add(rightArm);
     
     // Legs
     const legGeo = new THREE.BoxGeometry(
-        type === ZOMBIE_TYPES.TANK ? 0.4 : 0.25,
-        type === ZOMBIE_TYPES.TANK ? 1.2 : 0.8,
-        type === ZOMBIE_TYPES.TANK ? 0.4 : 0.25
+        type === ZOMBIE_TYPES.TANK ? 0.4 : 
+        type === ZOMBIE_TYPES.RANGED ? 0.3 : 0.25,
+        type === ZOMBIE_TYPES.TANK ? 1.2 : 
+        type === ZOMBIE_TYPES.RANGED ? 1.0 : 0.8,
+        type === ZOMBIE_TYPES.TANK ? 0.4 : 
+        type === ZOMBIE_TYPES.RANGED ? 0.3 : 0.25
     );
     
     // Left leg
     const leftLeg = new THREE.Mesh(legGeo, mat);
     leftLeg.position.set(
-        type === ZOMBIE_TYPES.TANK ? -0.3 : -0.2,
-        type === ZOMBIE_TYPES.TANK ? -1.5 : -1,
+        type === ZOMBIE_TYPES.TANK ? -0.3 : 
+        type === ZOMBIE_TYPES.RANGED ? -0.25 : -0.2,
+        type === ZOMBIE_TYPES.TANK ? -1.5 : 
+        type === ZOMBIE_TYPES.RANGED ? -1.2 : -1,
         0
     );
     leftLeg.castShadow = true;
@@ -288,8 +358,10 @@ function spawnEnemy(type = ZOMBIE_TYPES.BASE) {
     // Right leg
     const rightLeg = new THREE.Mesh(legGeo, mat);
     rightLeg.position.set(
-        type === ZOMBIE_TYPES.TANK ? 0.3 : 0.2,
-        type === ZOMBIE_TYPES.TANK ? -1.5 : -1,
+        type === ZOMBIE_TYPES.TANK ? 0.3 : 
+        type === ZOMBIE_TYPES.RANGED ? 0.25 : 0.2,
+        type === ZOMBIE_TYPES.TANK ? -1.5 : 
+        type === ZOMBIE_TYPES.RANGED ? -1.2 : -1,
         0
     );
     rightLeg.castShadow = true;
@@ -348,6 +420,8 @@ function spawnEnemy(type = ZOMBIE_TYPES.BASE) {
     }
     
     console.log("Spawned zombie with health:", enemy.health);
+    
+    return enemy;
 }
 
 // Helper function to get zombie health based on type
@@ -357,6 +431,8 @@ function getZombieHealth(type) {
             return 8;
         case ZOMBIE_TYPES.PURPLE:
             return 3;
+        case ZOMBIE_TYPES.RANGED:
+            return 15; // Ranged zombies have more health
         default:
             return 5;
     }
@@ -369,6 +445,8 @@ function getZombieEmissiveColor(type) {
             return 0x300000; // Red glow
         case ZOMBIE_TYPES.PURPLE:
             return 0x300030; // Purple glow
+        case ZOMBIE_TYPES.RANGED:
+            return 0x303000; // Orange/amber glow
         default:
             return 0x003300; // Green glow
     }
@@ -517,6 +595,9 @@ function updateEnemies() {
     const now = Date.now();
     updateParticles();
     
+    // Update zombie projectiles
+    updateZombieProjectiles();
+    
     // Also update power-ups if the function exists
     if (typeof updatePowerups === 'function') {
         updatePowerups();
@@ -564,29 +645,63 @@ function updateEnemies() {
             // Store the current position before moving
             const previousPosition = enemy.mesh.position.clone();
             
-            // Move towards player with type-specific speed
-            const speed = enemy.type === ZOMBIE_TYPES.PURPLE ? PURPLE_ENEMY_SPEED :
-                         enemy.type === ZOMBIE_TYPES.TANK ? TANK_ENEMY_SPEED :
-                         BASE_ENEMY_SPEED;
-            enemy.mesh.position.add(directionToPlayer.multiplyScalar(speed));
-            enemy.mesh.position.y = enemy.targetY;
+            // Calculate distance to player (only in XZ plane)
+            const playerPos2D = new THREE.Vector2(camera.position.x, camera.position.z);
+            const zombiePos2D = new THREE.Vector2(enemy.mesh.position.x, enemy.mesh.position.z);
+            const distanceToPlayer = playerPos2D.distanceTo(zombiePos2D);
             
-            // Look at player
-            enemy.mesh.lookAt(new THREE.Vector3(
-                camera.position.x,
-                enemy.mesh.position.y,
-                camera.position.z
-            ));
+            // Special behavior for ranged zombies
+            if (enemy.type === ZOMBIE_TYPES.RANGED) {
+                // Look at player regardless of movement
+                enemy.mesh.lookAt(new THREE.Vector3(
+                    camera.position.x,
+                    enemy.mesh.position.y,
+                    camera.position.z
+                ));
+                
+                // If too close to player, move away
+                if (distanceToPlayer < RANGED_PREFERRED_DISTANCE - 2) {
+                    // Move away from player
+                    const moveAwayDirection = directionToPlayer.clone().multiplyScalar(-1);
+                    enemy.mesh.position.add(moveAwayDirection.multiplyScalar(RANGED_ENEMY_SPEED));
+                    enemy.mesh.position.y = enemy.targetY;
+                }
+                // If too far from player, move closer
+                else if (distanceToPlayer > RANGED_PREFERRED_DISTANCE + 2) {
+                    // Move towards player
+                    enemy.mesh.position.add(directionToPlayer.multiplyScalar(RANGED_ENEMY_SPEED));
+                    enemy.mesh.position.y = enemy.targetY;
+                }
+                // If at a good distance, perform ranged attack if cooldown allows
+                else if (distanceToPlayer <= RANGED_ATTACK_RANGE) {
+                    if (now - enemy.lastAttack >= RANGED_ATTACK_COOLDOWN) {
+                        // Perform ranged attack
+                        performRangedAttack(enemy);
+                        enemy.lastAttack = now;
+                    }
+                }
+            } 
+            // Regular zombie movement
+            else {
+                // Move towards player with type-specific speed
+                const speed = enemy.type === ZOMBIE_TYPES.PURPLE ? PURPLE_ENEMY_SPEED :
+                             enemy.type === ZOMBIE_TYPES.TANK ? TANK_ENEMY_SPEED :
+                             BASE_ENEMY_SPEED;
+                enemy.mesh.position.add(directionToPlayer.multiplyScalar(speed));
+                enemy.mesh.position.y = enemy.targetY;
+                
+                // Look at player
+                enemy.mesh.lookAt(new THREE.Vector3(
+                    camera.position.x,
+                    enemy.mesh.position.y,
+                    camera.position.z
+                ));
+            }
             
             // Player collision detection
             const playerRadius = 0.5; // Player collision radius
             const zombieRadius = 0.5; // Zombie collision radius
             const minDistance = playerRadius + zombieRadius;
-            
-            // Calculate distance to player (only in XZ plane)
-            const playerPos2D = new THREE.Vector2(camera.position.x, camera.position.z);
-            const zombiePos2D = new THREE.Vector2(enemy.mesh.position.x, enemy.mesh.position.z);
-            const distanceToPlayer = playerPos2D.distanceTo(zombiePos2D);
             
             // If too close to player, move back to previous position
             if (distanceToPlayer < minDistance) {
@@ -603,7 +718,11 @@ function updateEnemies() {
                 }
                 
                 // Apply a small side movement
-                enemy.mesh.position.add(sideStep.multiplyScalar(speed * 0.5));
+                const sideStepSpeed = enemy.type === ZOMBIE_TYPES.RANGED ? RANGED_ENEMY_SPEED : 
+                                     enemy.type === ZOMBIE_TYPES.PURPLE ? PURPLE_ENEMY_SPEED :
+                                     enemy.type === ZOMBIE_TYPES.TANK ? TANK_ENEMY_SPEED :
+                                     BASE_ENEMY_SPEED;
+                enemy.mesh.position.add(sideStep.multiplyScalar(sideStepSpeed * 0.5));
             }
             
             // Simple environment collision check (less frequent)
@@ -630,8 +749,9 @@ function updateEnemies() {
                 }
             }
             
-            // Check for player attack with type-specific damage
-            if (!enemy.isSpawning && enemy.mesh.position.distanceTo(camera.position) < 2) {
+            // Check for player attack with type-specific damage (only for melee zombies)
+            if (!enemy.isSpawning && enemy.type !== ZOMBIE_TYPES.RANGED && 
+                enemy.mesh.position.distanceTo(camera.position) < 2) {
                 if (now - enemy.lastAttack >= ATTACK_COOLDOWN) {
                     if (typeof damagePlayer === 'function') {
                         const damage = enemy.type === ZOMBIE_TYPES.TANK ? 2 : 1;
@@ -1490,6 +1610,10 @@ function createZombieSkinTexture(type = ZOMBIE_TYPES.BASE) {
         r: 180 + Math.floor(Math.random() * 30),
         g: 60 + Math.floor(Math.random() * 20),
         b: 60 + Math.floor(Math.random() * 20)
+    } : type === ZOMBIE_TYPES.RANGED ? {
+        r: 120 + Math.floor(Math.random() * 30),
+        g: 100 + Math.floor(Math.random() * 20),
+        b: 90 + Math.floor(Math.random() * 20)
     } : {
         r: 100 + Math.floor(Math.random() * 30),
         g: 150 + Math.floor(Math.random() * 30),
@@ -1633,6 +1757,10 @@ function createZombieFaceTexture(type = ZOMBIE_TYPES.BASE) {
         r: 180 + Math.floor(Math.random() * 30),
         g: 60 + Math.floor(Math.random() * 20),
         b: 60 + Math.floor(Math.random() * 20)
+    } : type === ZOMBIE_TYPES.RANGED ? {
+        r: 120 + Math.floor(Math.random() * 30),
+        g: 100 + Math.floor(Math.random() * 20),
+        b: 90 + Math.floor(Math.random() * 20)
     } : {
         r: 100 + Math.floor(Math.random() * 30),
         g: 130 + Math.floor(Math.random() * 30),
@@ -1924,6 +2052,144 @@ function addBloodSplatter(zombieMesh) {
         
         // Set render order to ensure blood splatters render after the zombie parts
         splatter.renderOrder = 1;
+    }
+}
+
+// Perform a ranged attack from a zombie
+function performRangedAttack(enemy) {
+    // Create projectile geometry and material
+    const projectileGeo = new THREE.SphereGeometry(0.15, 8, 8);
+    const projectileMat = new THREE.MeshBasicMaterial({ 
+        color: 0xFF6600, // Orange projectile
+        emissive: 0xFF6600,
+        emissiveIntensity: 0.5
+    });
+    
+    // Create projectile mesh
+    const projectileMesh = new THREE.Mesh(projectileGeo, projectileMat);
+    
+    // Position at zombie's head
+    projectileMesh.position.copy(enemy.mesh.position);
+    projectileMesh.position.y += 1.5; // Adjust to head height
+    
+    // Calculate direction to player
+    const directionToPlayer = new THREE.Vector3()
+        .subVectors(camera.position, projectileMesh.position)
+        .normalize();
+    
+    // Add some randomness to direction (slight inaccuracy)
+    directionToPlayer.x += (Math.random() - 0.5) * 0.1;
+    directionToPlayer.z += (Math.random() - 0.5) * 0.1;
+    directionToPlayer.normalize();
+    
+    // Create projectile object
+    const projectile = {
+        mesh: projectileMesh,
+        velocity: directionToPlayer.clone().multiplyScalar(RANGED_PROJECTILE_SPEED),
+        created: Date.now(),
+        damage: 1 // 1 heart of damage
+    };
+    
+    // Add to scene and projectiles array
+    scene.add(projectileMesh);
+    zombieProjectiles.push(projectile);
+    
+    // Play sound effect
+    if (typeof playSound === 'function') {
+        playSound('zombieAttack'); // Reuse zombie attack sound or create a new one
+    }
+}
+
+// Update zombie projectiles
+function updateZombieProjectiles() {
+    const now = Date.now();
+    
+    for (let i = zombieProjectiles.length - 1; i >= 0; i--) {
+        const projectile = zombieProjectiles[i];
+        
+        // Move projectile
+        projectile.mesh.position.add(projectile.velocity);
+        
+        // Check for collision with player
+        const distanceToPlayer = projectile.mesh.position.distanceTo(camera.position);
+        if (distanceToPlayer < 1.0) { // Player hit radius
+            // Damage player
+            if (typeof damagePlayer === 'function') {
+                damagePlayer(projectile.damage);
+            }
+            
+            // Apply knockback to player
+            if (typeof velocity !== 'undefined') {
+                // Get direction from projectile to player
+                const knockbackDir = new THREE.Vector3()
+                    .subVectors(camera.position, projectile.mesh.position)
+                    .normalize();
+                
+                // Apply knockback force
+                velocity.add(knockbackDir.multiplyScalar(0.1));
+            }
+            
+            // Remove projectile
+            scene.remove(projectile.mesh);
+            projectile.mesh.geometry.dispose();
+            projectile.mesh.material.dispose();
+            zombieProjectiles.splice(i, 1);
+            
+            // Play hit sound
+            if (typeof playSound === 'function') {
+                playSound('hit');
+            }
+            
+            continue;
+        }
+        
+        // Check for collision with environment
+        if (typeof window.environmentObjects !== 'undefined') {
+            let environmentCollision = false;
+            
+            // Check for ground collision
+            if (projectile.mesh.position.y <= 0) {
+                environmentCollision = true;
+                projectile.mesh.position.y = 0; // Place on ground
+            }
+            
+            // Check for collision with environment objects
+            if (!environmentCollision) {
+                for (let j = 0; j < window.environmentObjects.length; j++) {
+                    const obj = window.environmentObjects[j];
+                    if (obj.userData && obj.userData.isCollidable) {
+                        const distance = projectile.mesh.position.distanceTo(obj.position);
+                        const minDistance = 0.15 + (obj.userData.radius || 0.5); // Projectile radius + object radius
+                        
+                        if (distance < minDistance) {
+                            environmentCollision = true;
+                            break;
+                        }
+                    }
+                }
+            }
+            
+            if (environmentCollision) {
+                // Create impact effect
+                createEnvironmentHitEffect(projectile.mesh.position);
+                
+                // Remove projectile
+                scene.remove(projectile.mesh);
+                projectile.mesh.geometry.dispose();
+                projectile.mesh.material.dispose();
+                zombieProjectiles.splice(i, 1);
+                
+                continue;
+            }
+        }
+        
+        // Remove if too old
+        if (now - projectile.created > RANGED_PROJECTILE_LIFETIME) {
+            scene.remove(projectile.mesh);
+            projectile.mesh.geometry.dispose();
+            projectile.mesh.material.dispose();
+            zombieProjectiles.splice(i, 1);
+        }
     }
 }
 
