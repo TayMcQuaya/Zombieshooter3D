@@ -993,10 +993,24 @@ function destroyEnemy(enemy) {
         enemies.splice(index, 1);
     }
     
-    // Update score
-    if (typeof updateScore === 'function') {
-        updateScore(10);
+    // Determine points based on zombie type
+    let points = 10; // Default for base zombies
+    
+    if (enemy.type === ZOMBIE_TYPES.PURPLE) {
+        points = 20; // Purple zombies
+    } else if (enemy.type === ZOMBIE_TYPES.RANGED) {
+        points = 30; // Yellow (ranged) zombies
+    } else if (enemy.type === ZOMBIE_TYPES.TANK) {
+        points = 40; // Red (tank) zombies
     }
+    
+    // Update score with appropriate points
+    if (typeof updateScore === 'function') {
+        updateScore(points);
+    }
+    
+    // Log the points awarded
+    console.log(`Awarded ${points} points for killing a ${enemy.type} zombie`);
     
     // Update zombie kill count
     if (typeof updateZombieKills === 'function') {
