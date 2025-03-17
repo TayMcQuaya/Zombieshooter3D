@@ -991,6 +991,18 @@ function checkCollision(position) {
     return false; // No collision
 }
 
+// Add reload completion handler
+function handleReloadComplete() {
+    const weapon = WEAPONS[currentWeapon];
+    isReloading = false;
+    weapon.ammo = weapon.maxAmmo;
+    updateAmmoDisplay(weapon.ammo);
+    // Hide reloading text
+    if (typeof showReloadingText === 'function') {
+        showReloadingText(false);
+    }
+}
+
 // Modified shoot function
 function shoot() {
     const now = Date.now();
@@ -1001,10 +1013,7 @@ function shoot() {
         if (now - reloadStartTime < RELOAD_TIME) {
             return; // Still reloading
         } else {
-            // Reload complete
-            isReloading = false;
-            weapon.ammo = weapon.maxAmmo;
-            updateAmmoDisplay(weapon.ammo);
+            handleReloadComplete();
         }
     }
     
@@ -1013,9 +1022,22 @@ function shoot() {
         // Start reloading
         isReloading = true;
         reloadStartTime = now;
+        // Play the appropriate reload sound
         if (typeof playSound === 'function') {
-            playSound('reload');
+            if (currentWeapon === 'RIFLE') {
+                playSound('rifle_reload');
+            } else {
+                playSound('reload');
+            }
         }
+        // Show reloading text
+        if (typeof showReloadingText === 'function') {
+            showReloadingText(true);
+        }
+        // Set up automatic reload completion
+        setTimeout(() => {
+            handleReloadComplete();
+        }, RELOAD_TIME);
         return;
     }
     

@@ -250,6 +250,9 @@ function playSound(soundType) {
         case 'shoot':
             playShootSound();
             break;
+        case 'rifle_reload':
+            playRifleReloadSound();
+            break;
         case 'explosion':
             playExplosionSound();
             break;
@@ -641,6 +644,28 @@ function playZombieSpawnSound() {
     // Remove the element after playing
     zombieSpawnSound.onended = () => {
         zombieSpawnSound.remove();
+    };
+}
+
+// Play rifle reload sound
+function playRifleReloadSound() {
+    if (!soundEnabled) return;
+    
+    // Create audio element for rifle reload sound
+    const reloadSound = document.createElement('audio');
+    reloadSound.volume = 0.4;
+    
+    // Use rifle reload sound
+    reloadSound.src = 'assets/sounds/Rifle sfx/rifle_reload.wav';
+    
+    // Play the sound
+    reloadSound.play().catch(e => {
+        console.warn('Could not play rifle reload sound:', e);
+    });
+    
+    // Remove the element after playing
+    reloadSound.onended = () => {
+        reloadSound.remove();
     };
 }
 
