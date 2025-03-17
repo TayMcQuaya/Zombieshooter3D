@@ -69,7 +69,7 @@ const WEAPONS = {
         shootCooldown: 800,
         projectileSpeed: 0.9,
         model: null,
-        damage: 15,
+        damage: 15, // Increased from 8 for more damage per pellet
         pellets: 8,
         spread: 0.4,
         maxRange: 5,
@@ -1144,7 +1144,8 @@ function shoot() {
             playSound('shotgunshot');
         }
         
-        let hasHitEnvironment = false; // Track if we've hit the environment
+        let hasHitEnvironment = false;
+        const pelletHits = new Map(); // Track damage per enemy from this blast
         
         // Create multiple pellets for shotgun
         for (let i = 0; i < weapon.pellets; i++) {
@@ -1164,6 +1165,35 @@ function shoot() {
             
             raycaster.set(camera.position, direction);
             
+            // Check for enemy hits first
+            if (window.enemies && window.enemies.length > 0) {
+                for (const enemy of window.enemies) {
+                    if (!enemy.mesh) continue;
+                    
+                    const distanceFromPlayer = camera.position.distanceTo(enemy.mesh.position);
+                    if (distanceFromPlayer <= weapon.maxRange) {
+                        const toEnemy = new THREE.Vector3().subVectors(enemy.mesh.position, camera.position).normalize();
+                        const angleToEnemy = direction.angleTo(toEnemy);
+                        const maxAngle = Math.atan2(1.0, distanceFromPlayer);
+                        
+                        if (angleToEnemy <= maxAngle) {
+                            // Calculate damage with distance falloff
+                            const damageFalloff = Math.max(0, 1 - (distanceFromPlayer / weapon.maxRange));
+                            const pelletDamage = weapon.damage * damageFalloff;
+                            
+                            // Add hit effect immediately
+                            if (typeof window.hitEnemy === 'function') {
+                                window.hitEnemy(enemy);
+                            }
+                            
+                            // Accumulate damage for this enemy
+                            const currentDamage = pelletHits.get(enemy.mesh.uuid) || 0;
+                            pelletHits.set(enemy.mesh.uuid, currentDamage + pelletDamage);
+                        }
+                    }
+                }
+            }
+            
             // Create pellet
             const bulletGeo = new THREE.CylinderGeometry(0.01, 0.01, 0.1);
             const bulletMat = new THREE.MeshBasicMaterial({ 
@@ -1179,10 +1209,14 @@ function shoot() {
             if (intersects.length > 0 && intersects[0].distance <= weapon.maxRange) {
                 hitPoint = intersects[0].point;
                 
-                // Only play environment hit sound once per shotgun blast
+                // Only create one environment hit effect per shotgun blast
                 if (!hasHitEnvironment) {
                     hasHitEnvironment = true;
-                    createEnvironmentHitEffect(hitPoint, true); // Pass true to indicate it's a shotgun hit
+                    createEnvironmentHitEffect(hitPoint, true);
+                    // Play impact sound once for the shotgun blast
+                    if (typeof playSound === 'function') {
+                        playSound('impact');
+                    }
                 }
             } else {
                 // If no hit within range, set point at max range
@@ -1212,12 +1246,27 @@ function shoot() {
                 created: now,
                 damage: pelletDamage,
                 startPoint: barrelTipWorld.clone(),
-                targetPoint: hitPoint.clone()
+                targetPoint: hitPoint.clone(),
+                isShotgunPellet: true // Mark this as a shotgun pellet
             };
             
             // Add pellet to scene and projectiles array
             scene.add(bullet);
             projectiles.push(projectile);
+        }
+        
+        // Apply accumulated damage to each hit enemy
+        for (const [enemyId, totalDamage] of pelletHits) {
+            const hitEnemy = window.enemies.find(e => e.mesh && e.mesh.uuid === enemyId);
+            if (hitEnemy && typeof window.hitEnemy === 'function') {
+                // Create a custom hit event with accumulated damage
+                const hitEvent = {
+                    enemy: hitEnemy,
+                    damage: totalDamage,
+                    isShotgunBlast: true
+                };
+                window.hitEnemy(hitEnemy);
+            }
         }
     } else {
         // Original shooting logic for other weapons
@@ -1408,8 +1457,11 @@ function createMuzzleFlash() {
 function updateProjectiles() {
     const now = Date.now();
     
-    // Track which enemies have been hit in this frame by shotgun pellets
-    const hitEnemiesThisFrame = new Set();
+    // Track environment hits for sound
+    let hasPlayedShotgunHitSound = false;
+    
+    // Track accumulated damage per enemy for shotgun pellets
+    const pelletHits = new Map();
     
     // Update each projectile
     for (let i = projectiles.length - 1; i >= 0; i--) {
@@ -1427,13 +1479,15 @@ function updateProjectiles() {
         // Check for ground/floor collision
         if (prevY > 0 && projectile.mesh.position.y <= 0) {
             environmentCollision = true;
-            
-            // Set y position to exactly 0 (ground level)
             projectile.mesh.position.y = 0;
             
-            // Create hit effect but don't play sound for shotgun pellets
-            createEnvironmentHitEffect(projectile.mesh.position, false, true);
-            console.log("Projectile hit ground at", projectile.mesh.position.x, 0, projectile.mesh.position.z);
+            // Create hit effect but only play sound once per frame for shotgun
+            if (!projectile.isShotgunPellet) {
+                createEnvironmentHitEffect(projectile.mesh.position);
+            } else if (!hasPlayedShotgunHitSound) {
+                createEnvironmentHitEffect(projectile.mesh.position, true);
+                hasPlayedShotgunHitSound = true;
+            }
         }
         
         // Use raycaster to check for collisions with environment
@@ -1445,13 +1499,15 @@ function updateProjectiles() {
                 projectile.velocity.length() * 1.5
             );
             
-            // Check collision with environment objects
             const environmentIntersects = raycaster.intersectObjects(window.environmentObjects || [], true);
             if (environmentIntersects.length > 0) {
                 environmentCollision = true;
-                // Create hit effect but don't play sound for shotgun pellets
-                createEnvironmentHitEffect(environmentIntersects[0].point, false, true);
-                console.log("Projectile hit environment at", environmentIntersects[0].point);
+                if (!projectile.isShotgunPellet) {
+                    createEnvironmentHitEffect(environmentIntersects[0].point);
+                } else if (!hasPlayedShotgunHitSound) {
+                    createEnvironmentHitEffect(environmentIntersects[0].point, true);
+                    hasPlayedShotgunHitSound = true;
+                }
             }
         }
         
@@ -1462,16 +1518,10 @@ function updateProjectiles() {
             for (const enemy of window.enemies) {
                 if (!enemy.mesh) continue;
                 
-                // Skip if this enemy was already hit by a shotgun pellet this frame
-                if (hitEnemiesThisFrame.has(enemy.mesh.uuid)) continue;
-                
-                // For extremely close range, also check distance from camera to enemy
-                const distanceFromPlayer = camera.position.distanceTo(enemy.mesh.position);
                 const distanceFromBullet = projectile.mesh.position.distanceTo(enemy.mesh.position);
+                const distanceFromPlayer = camera.position.distanceTo(enemy.mesh.position);
                 
-                // Hit detection for extremely close range (within 2 units of player) or normal range
                 if ((distanceFromPlayer <= 2 && distanceFromBullet < 2) || distanceFromBullet < 1.0) {
-                    // For close range, check if enemy is in front of player
                     if (distanceFromPlayer <= 2) {
                         const toEnemy = new THREE.Vector3().subVectors(enemy.mesh.position, camera.position).normalize();
                         const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
@@ -1480,14 +1530,15 @@ function updateProjectiles() {
                     
                     hitEnemy = true;
                     
-                    // Add enemy to hit set if this is a shotgun pellet
-                    if (currentWeapon === 'SHOTGUN') {
-                        hitEnemiesThisFrame.add(enemy.mesh.uuid);
-                    }
-                    
-                    // Call enemy hit function if it exists
-                    if (typeof window.hitEnemy === 'function') {
-                        window.hitEnemy(enemy);
+                    if (projectile.isShotgunPellet) {
+                        // Accumulate damage for shotgun pellets
+                        const currentDamage = pelletHits.get(enemy.mesh.uuid) || 0;
+                        pelletHits.set(enemy.mesh.uuid, currentDamage + projectile.damage);
+                    } else {
+                        // Immediate hit registration for non-shotgun projectiles
+                        if (typeof window.hitEnemy === 'function') {
+                            window.hitEnemy(enemy);
+                        }
                     }
                     
                     break;
@@ -1501,6 +1552,19 @@ function updateProjectiles() {
             projectile.mesh.geometry.dispose();
             projectile.mesh.material.dispose();
             projectiles.splice(i, 1);
+        }
+    }
+    
+    // Apply accumulated shotgun damage after all pellets are processed
+    for (const [enemyId, totalDamage] of pelletHits) {
+        const hitEnemy = window.enemies.find(e => e.mesh && e.mesh.uuid === enemyId);
+        if (hitEnemy && typeof window.hitEnemy === 'function') {
+            const hitEvent = {
+                enemy: hitEnemy,
+                damage: totalDamage,
+                isShotgunBlast: true
+            };
+            window.hitEnemy(hitEnemy);
         }
     }
 }
