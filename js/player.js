@@ -1446,10 +1446,10 @@ function switchWeapon() {
     // Toggle between weapons
     const nextWeapon = currentWeapon === 'PISTOL' ? 'RIFLE' : 'PISTOL';
     
-    // Update weapon name in UI
-    const weaponNameElement = document.getElementById('weapon-name');
-    if (weaponNameElement) {
-        weaponNameElement.textContent = WEAPONS[nextWeapon].name;
+    // Update weapon display in UI with proper case
+    const displayName = nextWeapon === 'PISTOL' ? 'Pistol' : 'Rifle';
+    if (typeof updateWeaponDisplay === 'function') {
+        updateWeaponDisplay(displayName);
     }
     
     // Animate weapon switching
