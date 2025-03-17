@@ -58,7 +58,7 @@ const WEAPONS = {
         shootCooldown: 100, // Much faster fire rate
         projectileSpeed: 1.0, // Slightly faster projectiles
         model: null,
-        damage: 15, // Less damage per bullet but shoots faster
+        damage: 20, // Increasing rifle damage from 15 to 35
         maxAmmo: 30,
         ammo: 30
     }
