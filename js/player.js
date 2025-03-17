@@ -49,20 +49,29 @@ const WEAPONS = {
         name: 'Pistol',
         shootCooldown: 400,
         projectileSpeed: 0.8,
-        model: null
+        model: null,
+        damage: 25,
+        ammo: Infinity
     },
     RIFLE: {
         name: 'Rifle',
         shootCooldown: 100, // Much faster fire rate
         projectileSpeed: 1.0, // Slightly faster projectiles
-        model: null
+        model: null,
+        damage: 15, // Less damage per bullet but shoots faster
+        maxAmmo: 30,
+        ammo: 30
     }
 };
 
 let currentWeapon = 'PISTOL';
 let isWeaponSwitching = false;
+let isAutoFiring = false;
 const WEAPON_SWITCH_TIME = 500; // Time for switch animation in ms
 let weaponSwitchStart = 0;
+let reloadStartTime = 0;
+const RELOAD_TIME = 2000; // 2 seconds to reload
+let isReloading = false;
 
 // Weapon model
 let weaponModel = null;
@@ -123,8 +132,9 @@ function initPlayer() {
     // Set up mouse movement for looking around
     document.addEventListener('mousemove', onMouseMove);
     
-    // Set up mouse click for shooting
+    // Set up mouse events for shooting
     document.addEventListener('mousedown', onMouseDown);
+    document.addEventListener('mouseup', onMouseUp); // Add mouse up listener
     
     // Set up pointer lock change event
     document.addEventListener('pointerlockchange', onPointerLockChange);
@@ -601,7 +611,15 @@ function onMouseDown(event) {
     if (!gameActive || !document.pointerLockElement) return;
     
     if (event.button === 0) { // Left mouse button
-        shoot();
+        isAutoFiring = true;
+        shoot(); // Initial shot
+    }
+}
+
+// Add mouse up handler to stop auto-fire
+function onMouseUp(event) {
+    if (event.button === 0) { // Left mouse button
+        isAutoFiring = false;
     }
 }
 
@@ -913,6 +931,11 @@ function updatePlayer() {
     updateWeaponPosition();
     
     updateProjectiles();
+    
+    // Handle auto-fire for rifle only when mouse button is held
+    if (isAutoFiring && currentWeapon === 'RIFLE') {
+        shoot();
+    }
 }
 
 // Check collision with environment
@@ -968,15 +991,44 @@ function checkCollision(position) {
     return false; // No collision
 }
 
-// Modified shoot function to work with the scene-based weapon model
+// Modified shoot function
 function shoot() {
     const now = Date.now();
     const weapon = WEAPONS[currentWeapon];
+    
+    // Check if reloading
+    if (isReloading) {
+        if (now - reloadStartTime < RELOAD_TIME) {
+            return; // Still reloading
+        } else {
+            // Reload complete
+            isReloading = false;
+            weapon.ammo = weapon.maxAmmo;
+            updateAmmoDisplay(weapon.ammo);
+        }
+    }
+    
+    // Check ammo
+    if (weapon.ammo <= 0) {
+        // Start reloading
+        isReloading = true;
+        reloadStartTime = now;
+        if (typeof playSound === 'function') {
+            playSound('reload');
+        }
+        return;
+    }
     
     if (now - lastShootTime < weapon.shootCooldown) return;
     
     // Update last shoot time
     lastShootTime = now;
+    
+    // Decrease ammo for rifle
+    if (currentWeapon === 'RIFLE') {
+        weapon.ammo--;
+        updateAmmoDisplay(weapon.ammo);
+    }
     
     // Ensure weapon model exists
     if (!weaponModel || !scene.children.includes(weaponModel)) {
@@ -1433,7 +1485,7 @@ function createMoonHitEffect(hitPoint) {
 
 // Add weapon switching logic
 function switchWeapon() {
-    if (isWeaponSwitching) return;
+    if (isWeaponSwitching || isReloading) return;
     
     isWeaponSwitching = true;
     weaponSwitchStart = Date.now();
@@ -1446,10 +1498,16 @@ function switchWeapon() {
     // Toggle between weapons
     const nextWeapon = currentWeapon === 'PISTOL' ? 'RIFLE' : 'PISTOL';
     
-    // Update weapon display in UI with proper case
+    // Update weapon display in UI with proper case and ammo count
     const displayName = nextWeapon === 'PISTOL' ? 'Pistol' : 'Rifle';
+    const ammoCount = WEAPONS[nextWeapon].ammo;
     if (typeof updateWeaponDisplay === 'function') {
-        updateWeaponDisplay(displayName);
+        updateWeaponDisplay(displayName, nextWeapon === 'PISTOL' ? null : ammoCount);
+    }
+    
+    // Update the weapon SVG icon
+    if (typeof updateWeaponIcon === 'function') {
+        updateWeaponIcon(displayName);
     }
     
     // Animate weapon switching
