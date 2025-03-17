@@ -51,16 +51,31 @@ const WEAPONS = {
         projectileSpeed: 0.8,
         model: null,
         damage: 25,
-        ammo: Infinity
+        ammo: Infinity,
+        slot: 1
     },
     RIFLE: {
         name: 'Rifle',
-        shootCooldown: 100, // Much faster fire rate
-        projectileSpeed: 1.0, // Slightly faster projectiles
+        shootCooldown: 100,
+        projectileSpeed: 1.0,
         model: null,
-        damage: 20, // Increasing rifle damage from 15 to 35
+        damage: 35,
         maxAmmo: 30,
-        ammo: 30
+        ammo: 30,
+        slot: 2
+    },
+    SHOTGUN: {
+        name: 'Shotgun',
+        shootCooldown: 800,
+        projectileSpeed: 0.9,
+        model: null,
+        damage: 15,
+        pellets: 8,
+        spread: 0.4,
+        maxRange: 5,
+        maxAmmo: 8,
+        ammo: 8,
+        slot: 3
     }
 };
 
@@ -217,6 +232,11 @@ function createWeaponModel() {
     WEAPONS.RIFLE.model.visible = currentWeapon === 'RIFLE';
     weaponModel.add(WEAPONS.RIFLE.model);
     
+    // Create shotgun model
+    WEAPONS.SHOTGUN.model = createShotgunModel();
+    WEAPONS.SHOTGUN.model.visible = currentWeapon === 'SHOTGUN';
+    weaponModel.add(WEAPONS.SHOTGUN.model);
+    
     // Add the weapon model to the scene
     scene.add(weaponModel);
     
@@ -369,6 +389,49 @@ function createRifleModel() {
     return rifleGroup;
 }
 
+// Create shotgun model
+function createShotgunModel() {
+    const shotgunGroup = new THREE.Group();
+    
+    // Main body (longer and thicker than rifle)
+    const body = new THREE.Mesh(
+        new THREE.BoxGeometry(0.15, 0.15, 1.2),
+        new THREE.MeshPhongMaterial({ color: 0x444444 })
+    );
+    body.position.z = -0.6;
+    
+    // Barrel (double barrel effect)
+    const barrel1 = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.03, 0.03, 1.0, 8),
+        new THREE.MeshPhongMaterial({ color: 0x333333 })
+    );
+    barrel1.rotation.x = Math.PI / 2;
+    barrel1.position.set(0.04, 0.02, -0.5);
+    
+    const barrel2 = barrel1.clone();
+    barrel2.position.set(-0.04, 0.02, -0.5);
+    
+    // Stock
+    const stock = new THREE.Mesh(
+        new THREE.BoxGeometry(0.12, 0.18, 0.4),
+        new THREE.MeshPhongMaterial({ color: 0x554433 })
+    );
+    stock.position.z = 0.1;
+    
+    // Grip
+    const grip = new THREE.Mesh(
+        new THREE.BoxGeometry(0.1, 0.25, 0.1),
+        new THREE.MeshPhongMaterial({ color: 0x554433 })
+    );
+    grip.position.set(0, -0.1, -0.2);
+    grip.rotation.x = Math.PI / 6;
+    
+    // Assemble shotgun
+    shotgunGroup.add(body, barrel1, barrel2, stock, grip);
+    
+    return shotgunGroup;
+}
+
 // Update weapon position for bobbing and swaying effects
 function updateWeaponPosition() {
     if (!weaponModel) {
@@ -442,28 +505,40 @@ function updateWeaponPosition() {
 
 // Handle key down events
 function onKeyDown(event) {
-    if (!gameActive) return;
+    if (!gameActive || document.pointerLockElement !== document.body) return;
     
-    switch (event.key.toLowerCase()) {
-        case 'w':
+    switch (event.code) {
+        case 'KeyW':
             moveState.forward = true;  // W key maps to forward
             break;
-        case 's':
+        case 'KeyS':
             moveState.backward = true; // S key maps to backward
             break;
-        case 'a':
+        case 'KeyA':
             moveState.left = true;
             break;
-        case 'd':
+        case 'KeyD':
             moveState.right = true;
             break;
-        case ' ':
+        case 'Space':
             moveState.jump = true;
             break;
-        case 'shift':
+        case 'ShiftLeft':
             moveState.run = true;  // Shift key for running
             break;
-        case 'r':
+        case 'Digit1':
+            switchToWeapon('PISTOL');
+            break;
+        case 'Digit2':
+            switchToWeapon('RIFLE');
+            break;
+        case 'Digit3':
+            switchToWeapon('SHOTGUN');
+            break;
+        case 'Digit4':
+            // Reserved for future weapon
+            break;
+        case 'R':
             // Get camera's forward direction
             const direction = new THREE.Vector3(0, 0, -1);
             direction.applyQuaternion(camera.quaternion);
@@ -497,7 +572,7 @@ function onKeyDown(event) {
             // Restore original spawn function
             window.spawnEnemy = originalSpawnEnemy;
             break;
-        case 'm': // M key for testing moon hit
+        case 'M': // M key for testing moon hit
             console.log("M key pressed - testing moon hit");
             if (typeof window.handleMoonHit === 'function') {
                 window.handleMoonHit();
@@ -519,12 +594,6 @@ function onKeyDown(event) {
                 }
             }
             break;
-        case 'q':
-            if (!moveState.switchWeapon && !isWeaponSwitching) {
-                moveState.switchWeapon = true;
-                switchWeapon();
-            }
-            break;
     }
 }
 
@@ -532,27 +601,36 @@ function onKeyDown(event) {
 function onKeyUp(event) {
     if (!gameActive) return;
     
-    switch (event.key.toLowerCase()) {
-        case 'w':
+    switch (event.code) {
+        case 'KeyW':
             moveState.forward = false;
             break;
-        case 's':
+        case 'KeyS':
             moveState.backward = false;
             break;
-        case 'a':
+        case 'KeyA':
             moveState.left = false;
             break;
-        case 'd':
+        case 'KeyD':
             moveState.right = false;
             break;
-        case ' ':
+        case 'Space':
             moveState.jump = false;
             break;
-        case 'shift':
+        case 'ShiftLeft':
             moveState.run = false;  // Release shift key to stop running
             break;
-        case 'q':
+        case 'Digit1':
             moveState.switchWeapon = false;
+            break;
+        case 'Digit2':
+            moveState.switchWeapon = false;
+            break;
+        case 'Digit3':
+            moveState.switchWeapon = false;
+            break;
+        case 'Digit4':
+            // Reserved for future weapon
             break;
     }
 }
@@ -1026,6 +1104,8 @@ function shoot() {
         if (typeof playSound === 'function') {
             if (currentWeapon === 'RIFLE') {
                 playSound('rifle_reload');
+            } else if (currentWeapon === 'SHOTGUN') {
+                playSound('shotgun_reload');
             } else {
                 playSound('reload');
             }
@@ -1046,8 +1126,8 @@ function shoot() {
     // Update last shoot time
     lastShootTime = now;
     
-    // Decrease ammo for rifle
-    if (currentWeapon === 'RIFLE') {
+    // Decrease ammo for weapons with limited ammo
+    if (currentWeapon !== 'PISTOL') {
         weapon.ammo--;
         updateAmmoDisplay(weapon.ammo);
     }
@@ -1058,136 +1138,223 @@ function shoot() {
         createWeaponModel();
     }
     
-    // Create a raycaster from the camera center (where crosshair is)
-    const raycaster = new THREE.Raycaster();
-    raycaster.setFromCamera(new THREE.Vector2(0, 0), camera);
-    
-    // SPECIAL MOON HIT DETECTION - Enhanced with debugging
-    // Check if player is aiming at the moon, regardless of distance
-    if (window.moon) {
-        console.log("Moon object exists, attempting hit detection");
+    if (currentWeapon === 'SHOTGUN') {
+        // Play shotgun sound once before creating pellets
+        if (typeof playSound === 'function') {
+            playSound('shotgunshot');
+        }
         
-        // Get direction from camera to moon
-        const directionToMoon = new THREE.Vector3();
-        directionToMoon.subVectors(window.moon.position, camera.position).normalize();
+        let hasHitEnvironment = false; // Track if we've hit the environment
         
-        // Get camera's forward direction
-        const cameraDirection = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
-        
-        // Calculate the angle between camera direction and direction to moon
-        const angleToMoon = cameraDirection.angleTo(directionToMoon);
-        const angleInDegrees = angleToMoon * (180 / Math.PI);
-        
-        console.log("Angle to moon:", angleInDegrees.toFixed(2), "degrees");
-        
-        // If the angle is small enough, consider it a hit
-        // Using a much larger threshold (20 degrees) to make it very easy to hit
-        if (angleInDegrees < 20) {
-            console.log("Moon hit detected based on angle!");
+        // Create multiple pellets for shotgun
+        for (let i = 0; i < weapon.pellets; i++) {
+            // Calculate spread angles with more horizontal bias
+            const spreadX = (Math.random() - 0.5) * weapon.spread * 1.5; // 1.5x wider horizontal spread
+            const spreadY = (Math.random() - 0.5) * weapon.spread * 0.7; // 0.7x reduced vertical spread
             
-            // Call the moon hit handler function
-            if (typeof window.handleMoonHit === 'function') {
-                console.log("Calling handleMoonHit function");
-                window.handleMoonHit();
-            } else {
-                console.error("handleMoonHit function not found on window object!");
+            // Create a raycaster with spread
+            const raycaster = new THREE.Raycaster();
+            const direction = new THREE.Vector3(0, 0, -1);
+            direction.applyQuaternion(camera.quaternion);
+            
+            // Apply spread to direction
+            direction.x += spreadX;
+            direction.y += spreadY;
+            direction.normalize();
+            
+            raycaster.set(camera.position, direction);
+            
+            // Create pellet
+            const bulletGeo = new THREE.CylinderGeometry(0.01, 0.01, 0.1);
+            const bulletMat = new THREE.MeshBasicMaterial({ 
+                color: 0xD4AF37,
+                emissive: 0xD4AF37
+            });
+            const bullet = new THREE.Mesh(bulletGeo, bulletMat);
+            
+            // Calculate hit point with range limit
+            const intersects = raycaster.intersectObjects(window.environmentObjects || [], true);
+            let hitPoint;
+            
+            if (intersects.length > 0 && intersects[0].distance <= weapon.maxRange) {
+                hitPoint = intersects[0].point;
                 
-                // Fallback: Try to directly modify the moon's scale as a test
-                if (window.moon) {
-                    const currentScale = window.moon.scale.x;
-                    const newScale = currentScale < 1.8 ? currentScale * 1.2 : 1.0;
-                    console.log(`Direct moon scaling: ${currentScale} -> ${newScale}`);
-                    window.moon.scale.set(newScale, newScale, newScale);
-                    
-                    if (window.moonGlow) {
-                        window.moonGlow.scale.set(newScale, newScale, newScale);
-                    }
+                // Only play environment hit sound once per shotgun blast
+                if (!hasHitEnvironment) {
+                    hasHitEnvironment = true;
+                    createEnvironmentHitEffect(hitPoint, true); // Pass true to indicate it's a shotgun hit
                 }
+            } else {
+                // If no hit within range, set point at max range
+                hitPoint = new THREE.Vector3();
+                hitPoint.copy(camera.position).add(direction.multiplyScalar(weapon.maxRange));
             }
             
-            // Create a special visual effect showing the bullet "hitting" the moon
-            // Calculate a hit point along the ray for the visual effect
-            const hitPoint = new THREE.Vector3();
-            hitPoint.copy(camera.position).add(cameraDirection.multiplyScalar(100));
-            createMoonHitEffect(hitPoint);
+            // Define barrel tip position
+            const localBarrelTip = new THREE.Vector3(0, 0.02, -0.38);
+            const barrelTipWorld = localBarrelTip.clone();
+            barrelTipWorld.applyMatrix4(weaponModel.matrixWorld);
+            
+            // Position and orient pellet
+            bullet.position.copy(barrelTipWorld);
+            const pelletDirection = new THREE.Vector3().subVectors(hitPoint, barrelTipWorld).normalize();
+            bullet.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), pelletDirection);
+            
+            // Calculate damage based on distance
+            const distance = barrelTipWorld.distanceTo(hitPoint);
+            const damageFalloff = Math.max(0, 1 - (distance / weapon.maxRange));
+            const pelletDamage = weapon.damage * damageFalloff;
+            
+            // Create projectile object
+            const projectile = {
+                mesh: bullet,
+                velocity: pelletDirection.multiplyScalar(weapon.projectileSpeed),
+                created: now,
+                damage: pelletDamage,
+                startPoint: barrelTipWorld.clone(),
+                targetPoint: hitPoint.clone()
+            };
+            
+            // Add pellet to scene and projectiles array
+            scene.add(bullet);
+            projectiles.push(projectile);
+        }
+    } else {
+        // Original shooting logic for other weapons
+        const raycaster = new THREE.Raycaster();
+        raycaster.setFromCamera(new THREE.Vector2(0, 0), camera);
+        
+        // SPECIAL MOON HIT DETECTION - Enhanced with debugging
+        // Check if player is aiming at the moon, regardless of distance
+        if (window.moon) {
+            console.log("Moon object exists, attempting hit detection");
+            
+            // Get direction from camera to moon
+            const directionToMoon = new THREE.Vector3();
+            directionToMoon.subVectors(window.moon.position, camera.position).normalize();
+            
+            // Get camera's forward direction
+            const cameraDirection = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
+            
+            // Calculate the angle between camera direction and direction to moon
+            const angleToMoon = cameraDirection.angleTo(directionToMoon);
+            const angleInDegrees = angleToMoon * (180 / Math.PI);
+            
+            console.log("Angle to moon:", angleInDegrees.toFixed(2), "degrees");
+            
+            // If the angle is small enough, consider it a hit
+            // Using a much larger threshold (20 degrees) to make it very easy to hit
+            if (angleInDegrees < 20) {
+                console.log("Moon hit detected based on angle!");
+                
+                // Call the moon hit handler function
+                if (typeof window.handleMoonHit === 'function') {
+                    console.log("Calling handleMoonHit function");
+                    window.handleMoonHit();
+                } else {
+                    console.error("handleMoonHit function not found on window object!");
+                    
+                    // Fallback: Try to directly modify the moon's scale as a test
+                    if (window.moon) {
+                        const currentScale = window.moon.scale.x;
+                        const newScale = currentScale < 1.8 ? currentScale * 1.2 : 1.0;
+                        console.log(`Direct moon scaling: ${currentScale} -> ${newScale}`);
+                        window.moon.scale.set(newScale, newScale, newScale);
+                        
+                        if (window.moonGlow) {
+                            window.moonGlow.scale.set(newScale, newScale, newScale);
+                        }
+                    }
+                }
+                
+                // Create a special visual effect showing the bullet "hitting" the moon
+                // Calculate a hit point along the ray for the visual effect
+                const hitPoint = new THREE.Vector3();
+                hitPoint.copy(camera.position).add(cameraDirection.multiplyScalar(100));
+                createMoonHitEffect(hitPoint);
+            } else {
+                console.log("No moon hit detected - angle too large");
+            }
         } else {
-            console.log("No moon hit detected - angle too large");
+            console.error("Moon object not found on window object!");
         }
-    } else {
-        console.error("Moon object not found on window object!");
-    }
-    
-    // Remove oldest projectile if at max
-    if (projectiles.length >= MAX_PROJECTILES) {
-        const oldest = projectiles.shift();
-        if (oldest) {
-            scene.remove(oldest.mesh);
-            oldest.mesh.geometry.dispose();
-            oldest.mesh.material.dispose();
+        
+        // Remove oldest projectile if at max
+        if (projectiles.length >= MAX_PROJECTILES) {
+            const oldest = projectiles.shift();
+            if (oldest) {
+                scene.remove(oldest.mesh);
+                oldest.mesh.geometry.dispose();
+                oldest.mesh.material.dispose();
+            }
         }
+        
+        const bulletGeo = new THREE.CylinderGeometry(0.02, 0.02, 0.15); // Smaller bullet
+        const bulletMat = new THREE.MeshBasicMaterial({ 
+            color: 0xD4AF37, // More realistic gold color for bullet
+            emissive: 0xD4AF37
+        });
+        const bullet = new THREE.Mesh(bulletGeo, bulletMat);
+        
+        // Calculate the exact hit point in world space
+        // Cast ray to find the intersection with objects or use a far point if no intersection
+        const intersects = raycaster.intersectObjects(window.environmentObjects || [], true);
+        let hitPoint;
+        
+        if (intersects.length > 0) {
+            // If we hit something, use that point
+            hitPoint = intersects[0].point;
+        } else {
+            // If we didn't hit something, use a point far along the ray
+            hitPoint = new THREE.Vector3();
+            hitPoint.copy(camera.position).add(raycaster.ray.direction.multiplyScalar(100));
+        }
+        
+        // Define the barrel tip position in local space
+        const localBarrelTip = new THREE.Vector3(0, 0.02, -0.38);
+        
+        // Calculate the world position of the barrel tip for the bullet
+        const barrelTipWorld = localBarrelTip.clone();
+        barrelTipWorld.applyMatrix4(weaponModel.matrixWorld);
+        
+        // Calculate direction from barrel tip to hit point
+        const direction = new THREE.Vector3();
+        direction.subVectors(hitPoint, barrelTipWorld).normalize();
+        
+        // Position bullet at barrel tip world position
+        bullet.position.copy(barrelTipWorld);
+        
+        // Align bullet with trajectory
+        bullet.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), direction);
+        
+        // Create projectile object
+        const projectile = {
+            mesh: bullet,
+            velocity: direction.clone().multiplyScalar(weapon.projectileSpeed),
+            created: now,
+            startPoint: barrelTipWorld.clone(),
+            targetPoint: hitPoint.clone()
+        };
+        
+        // Add bullet to scene and projectiles array
+        scene.add(bullet);
+        projectiles.push(projectile);
+        
+        // Create muzzle flash - passing no position as we now use local coordinates
+        createMuzzleFlash();
+        
+        // Play sound - use pistolshot.wav
+        if (typeof playSound === 'function') {
+            if (currentWeapon === 'PISTOL') {
+                playSound('shoot');  // pistol sound
+            } else if (currentWeapon === 'RIFLE') {
+                playSound('shoot');  // rifle uses same sound for now
+            }
+        }
+        
+        // Log debug info
+        console.log(`Shot fired from ${barrelTipWorld.x.toFixed(2)}, ${barrelTipWorld.y.toFixed(2)}, ${barrelTipWorld.z.toFixed(2)}`);
     }
-    
-    const bulletGeo = new THREE.CylinderGeometry(0.02, 0.02, 0.15); // Smaller bullet
-    const bulletMat = new THREE.MeshBasicMaterial({ 
-        color: 0xD4AF37, // More realistic gold color for bullet
-        emissive: 0xD4AF37
-    });
-    const bullet = new THREE.Mesh(bulletGeo, bulletMat);
-    
-    // Calculate the exact hit point in world space
-    // Cast ray to find the intersection with objects or use a far point if no intersection
-    const intersects = raycaster.intersectObjects(window.environmentObjects || [], true);
-    let hitPoint;
-    
-    if (intersects.length > 0) {
-        // If we hit something, use that point
-        hitPoint = intersects[0].point;
-    } else {
-        // If we didn't hit something, use a point far along the ray
-        hitPoint = new THREE.Vector3();
-        hitPoint.copy(camera.position).add(raycaster.ray.direction.multiplyScalar(100));
-    }
-    
-    // Define the barrel tip position in local space
-    const localBarrelTip = new THREE.Vector3(0, 0.02, -0.38);
-    
-    // Calculate the world position of the barrel tip for the bullet
-    const barrelTipWorld = localBarrelTip.clone();
-    barrelTipWorld.applyMatrix4(weaponModel.matrixWorld);
-    
-    // Calculate direction from barrel tip to hit point
-    const direction = new THREE.Vector3();
-    direction.subVectors(hitPoint, barrelTipWorld).normalize();
-    
-    // Position bullet at barrel tip world position
-    bullet.position.copy(barrelTipWorld);
-    
-    // Align bullet with trajectory
-    bullet.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), direction);
-    
-    // Create projectile object
-    const projectile = {
-        mesh: bullet,
-        velocity: direction.clone().multiplyScalar(weapon.projectileSpeed),
-        created: now,
-        startPoint: barrelTipWorld.clone(),
-        targetPoint: hitPoint.clone()
-    };
-    
-    // Add bullet to scene and projectiles array
-    scene.add(bullet);
-    projectiles.push(projectile);
-    
-    // Create muzzle flash - passing no position as we now use local coordinates
-    createMuzzleFlash();
-    
-    // Play sound - use pistolshot.wav
-    if (typeof playSound === 'function') {
-        playSound('shoot');
-    }
-    
-    // Log debug info
-    console.log(`Shot fired from ${barrelTipWorld.x.toFixed(2)}, ${barrelTipWorld.y.toFixed(2)}, ${barrelTipWorld.z.toFixed(2)}`);
 }
 
 // Create muzzle flash effect
@@ -1241,6 +1408,9 @@ function createMuzzleFlash() {
 function updateProjectiles() {
     const now = Date.now();
     
+    // Track which enemies have been hit in this frame by shotgun pellets
+    const hitEnemiesThisFrame = new Set();
+    
     // Update each projectile
     for (let i = projectiles.length - 1; i >= 0; i--) {
         const projectile = projectiles[i];
@@ -1261,26 +1431,26 @@ function updateProjectiles() {
             // Set y position to exactly 0 (ground level)
             projectile.mesh.position.y = 0;
             
-            // Create the same environment hit effect as walls/rocks/trees
-            createEnvironmentHitEffect(projectile.mesh.position);
+            // Create hit effect but don't play sound for shotgun pellets
+            createEnvironmentHitEffect(projectile.mesh.position, false, true);
             console.log("Projectile hit ground at", projectile.mesh.position.x, 0, projectile.mesh.position.z);
         }
         
         // Use raycaster to check for collisions with environment
         if (!environmentCollision) {
             const raycaster = new THREE.Raycaster(
-                projectile.mesh.position.clone().sub(projectile.velocity), // Start from previous position
+                projectile.mesh.position.clone().sub(projectile.velocity),
                 projectile.velocity.clone().normalize(),
-                0, // Near
-                projectile.velocity.length() * 1.5 // Far (slightly more than movement distance)
+                0,
+                projectile.velocity.length() * 1.5
             );
             
             // Check collision with environment objects
             const environmentIntersects = raycaster.intersectObjects(window.environmentObjects || [], true);
             if (environmentIntersects.length > 0) {
                 environmentCollision = true;
-                // Create environment hit effect (sparks/debris, not blood)
-                createEnvironmentHitEffect(environmentIntersects[0].point);
+                // Create hit effect but don't play sound for shotgun pellets
+                createEnvironmentHitEffect(environmentIntersects[0].point, false, true);
                 console.log("Projectile hit environment at", environmentIntersects[0].point);
             }
         }
@@ -1292,6 +1462,9 @@ function updateProjectiles() {
             for (const enemy of window.enemies) {
                 if (!enemy.mesh) continue;
                 
+                // Skip if this enemy was already hit by a shotgun pellet this frame
+                if (hitEnemiesThisFrame.has(enemy.mesh.uuid)) continue;
+                
                 // For extremely close range, also check distance from camera to enemy
                 const distanceFromPlayer = camera.position.distanceTo(enemy.mesh.position);
                 const distanceFromBullet = projectile.mesh.position.distanceTo(enemy.mesh.position);
@@ -1300,24 +1473,23 @@ function updateProjectiles() {
                 if ((distanceFromPlayer <= 2 && distanceFromBullet < 2) || distanceFromBullet < 1.0) {
                     // For close range, check if enemy is in front of player
                     if (distanceFromPlayer <= 2) {
-                        // Get direction to enemy
                         const toEnemy = new THREE.Vector3().subVectors(enemy.mesh.position, camera.position).normalize();
-                        // Get player's forward direction
                         const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
-                        // Check if enemy is in front (dot product > 0 means enemy is in front)
                         if (toEnemy.dot(forward) <= 0) continue;
                     }
                     
                     hitEnemy = true;
+                    
+                    // Add enemy to hit set if this is a shotgun pellet
+                    if (currentWeapon === 'SHOTGUN') {
+                        hitEnemiesThisFrame.add(enemy.mesh.uuid);
+                    }
                     
                     // Call enemy hit function if it exists
                     if (typeof window.hitEnemy === 'function') {
                         window.hitEnemy(enemy);
                     }
                     
-                    // No need to create hit effect here - the hitEnemy function already creates blood effects
-                    
-                    console.log("Enemy hit at distance from player:", distanceFromPlayer, "bullet distance:", distanceFromBullet);
                     break;
                 }
             }
@@ -1334,15 +1506,15 @@ function updateProjectiles() {
 }
 
 // Create environment hit effect
-function createEnvironmentHitEffect(position) {
-    const particleCount = 6;
+function createEnvironmentHitEffect(position, isShotgunHit = false, skipSound = false) {
+    const particleCount = isShotgunHit ? 12 : 6; // More particles for shotgun
     
     for (let i = 0; i < particleCount; i++) {
         // Create a small spark/debris particle
         const particle = new THREE.Mesh(
-            new THREE.SphereGeometry(0.03 + Math.random() * 0.02), // Varied sizes
+            new THREE.SphereGeometry(0.03 + Math.random() * 0.02),
             new THREE.MeshBasicMaterial({ 
-                color: Math.random() > 0.5 ? 0xCCCCCC : 0x888888, // Gray/dark gray for concrete/metal debris
+                color: Math.random() > 0.5 ? 0xCCCCCC : 0x888888,
                 transparent: true,
                 opacity: 0.8
             })
@@ -1352,9 +1524,9 @@ function createEnvironmentHitEffect(position) {
         
         // Add random velocity away from hit point
         const velocity = new THREE.Vector3(
-            (Math.random() - 0.5) * 0.1,
-            Math.random() * 0.1,
-            (Math.random() - 0.5) * 0.1
+            (Math.random() - 0.5) * (isShotgunHit ? 0.15 : 0.1),
+            Math.random() * (isShotgunHit ? 0.15 : 0.1),
+            (Math.random() - 0.5) * (isShotgunHit ? 0.15 : 0.1)
         );
         
         scene.add(particle);
@@ -1364,11 +1536,11 @@ function createEnvironmentHitEffect(position) {
             scene.remove(particle);
             particle.geometry.dispose();
             particle.material.dispose();
-        }, 400 + Math.random() * 200); // Varied lifetime
+        }, 400 + Math.random() * 200);
     }
     
     // Add a small dust effect
-    const dustGeo = new THREE.SphereGeometry(0.2, 8, 8);
+    const dustGeo = new THREE.SphereGeometry(isShotgunHit ? 0.3 : 0.2, 8, 8);
     const dustMat = new THREE.MeshBasicMaterial({
         color: 0xBBBBBB,
         transparent: true,
@@ -1382,7 +1554,7 @@ function createEnvironmentHitEffect(position) {
     let scale = 1.0;
     let opacity = 0.5;
     const dustAnim = setInterval(() => {
-        scale += 0.1;
+        scale += isShotgunHit ? 0.15 : 0.1;
         opacity -= 0.05;
         dust.scale.set(scale, scale, scale);
         dustMat.opacity = opacity;
@@ -1395,8 +1567,8 @@ function createEnvironmentHitEffect(position) {
         }
     }, 30);
     
-    // Play impact sound - use envhit.wav
-    if (typeof playSound === 'function') {
+    // Play impact sound only if not skipped and not a shotgun hit
+    if (!skipSound && !isShotgunHit && typeof playSound === 'function') {
         playSound('impact');
     }
 }
@@ -1505,9 +1677,9 @@ function createMoonHitEffect(hitPoint) {
     }
 }
 
-// Add weapon switching logic
-function switchWeapon() {
-    if (isWeaponSwitching || isReloading) return;
+// New function to switch to a specific weapon
+function switchToWeapon(weaponName) {
+    if (isWeaponSwitching || isReloading || !WEAPONS[weaponName] || currentWeapon === weaponName) return;
     
     isWeaponSwitching = true;
     weaponSwitchStart = Date.now();
@@ -1517,14 +1689,11 @@ function switchWeapon() {
         playSound('weaponSwitch');
     }
     
-    // Toggle between weapons
-    const nextWeapon = currentWeapon === 'PISTOL' ? 'RIFLE' : 'PISTOL';
-    
-    // Update weapon display in UI with proper case and ammo count
-    const displayName = nextWeapon === 'PISTOL' ? 'Pistol' : 'Rifle';
-    const ammoCount = WEAPONS[nextWeapon].ammo;
+    // Update weapon display in UI with proper case
+    const displayName = WEAPONS[weaponName].name;
+    const ammoCount = WEAPONS[weaponName].ammo;
     if (typeof updateWeaponDisplay === 'function') {
-        updateWeaponDisplay(displayName, nextWeapon === 'PISTOL' ? null : ammoCount);
+        updateWeaponDisplay(displayName, weaponName === 'PISTOL' ? null : ammoCount);
     }
     
     // Update the weapon SVG icon
@@ -1543,33 +1712,31 @@ function switchWeapon() {
         
         // First half of animation - current weapon moves down
         if (progress < 0.5) {
-            const downProgress = progress * 2; // 0 to 1 during first half
-            const y = startY - (downProgress * 0.5); // Move down by 0.5 units
+            const downProgress = progress * 2;
+            const y = startY - (downProgress * 0.5);
             weaponModel.position.y = y;
             
-            if (progress >= 0.45) { // Near the bottom, switch models
-                WEAPONS.PISTOL.model.visible = nextWeapon === 'PISTOL';
-                WEAPONS.RIFLE.model.visible = nextWeapon === 'RIFLE';
-                currentWeapon = nextWeapon;
+            if (progress >= 0.45) {
+                // Switch models
+                Object.keys(WEAPONS).forEach(weapon => {
+                    WEAPONS[weapon].model.visible = weapon === weaponName;
+                });
+                currentWeapon = weaponName;
             }
-        } 
-        // Second half - new weapon moves up
-        else {
-            const upProgress = (progress - 0.5) * 2; // 0 to 1 during second half
-            const y = (startY - 0.5) + (upProgress * 0.5); // Move up by 0.5 units
+        } else {
+            const upProgress = (progress - 0.5) * 2;
+            const y = (startY - 0.5) + (upProgress * 0.5);
             weaponModel.position.y = y;
         }
         
-        // Continue animation if not complete
         if (progress < 1) {
             requestAnimationFrame(animateSwitch);
         } else {
             isWeaponSwitching = false;
-            updateWeaponPosition(); // Ensure final position is correct
+            updateWeaponPosition();
         }
     }
     
-    // Start the animation
     animateSwitch();
 }
 

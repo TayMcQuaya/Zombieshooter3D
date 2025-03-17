@@ -248,7 +248,43 @@ function playSound(soundType) {
     
     switch(soundType) {
         case 'shoot':
-            playShootSound();
+            if (!soundEnabled) return;
+            
+            // Create audio element for shoot sound
+            const shootSound = document.createElement('audio');
+            shootSound.volume = 0.3;
+            
+            // Use pistolshot.wav
+            shootSound.src = 'assets/sounds/Pistol sfx/pistolshot.wav';
+            
+            // Play the sound
+            shootSound.play().catch(e => {
+                console.warn('Could not play shoot sound:', e);
+            });
+            
+            // Remove the element after playing
+            shootSound.onended = () => {
+                shootSound.remove();
+            };
+            break;
+        case 'shotgunshot':
+            if (!soundEnabled) return;
+            
+            const shotgunSound = document.createElement('audio');
+            shotgunSound.volume = 0.5; // Slightly louder than other weapons
+            
+            shotgunSound.src = 'assets/sounds/Shotgun sfx/shotgunshot.wav';
+            
+            shotgunSound.play().catch(e => {
+                console.warn('Could not play shotgun shot sound:', e);
+            });
+            
+            shotgunSound.onended = () => {
+                shotgunSound.remove();
+            };
+            break;
+        case 'shotgun_reload':
+            playShotgunReloadSound();
             break;
         case 'rifle_reload':
             playRifleReloadSound();
@@ -299,28 +335,6 @@ function playSound(soundType) {
         default:
             console.warn('Unknown sound type:', soundType);
     }
-}
-
-// Play shoot sound
-function playShootSound() {
-    if (!soundEnabled) return;
-    
-    // Create audio element for shoot sound
-    const shootSound = document.createElement('audio');
-    shootSound.volume = 0.3;
-    
-    // Use pistolshot.wav
-    shootSound.src = 'assets/sounds/Pistol sfx/pistolshot.wav';
-    
-    // Play the sound
-    shootSound.play().catch(e => {
-        console.warn('Could not play shoot sound:', e);
-    });
-    
-    // Remove the element after playing
-    shootSound.onended = () => {
-        shootSound.remove();
-    };
 }
 
 // Play explosion sound
@@ -664,6 +678,42 @@ function playRifleReloadSound() {
     });
     
     // Remove the element after playing
+    reloadSound.onended = () => {
+        reloadSound.remove();
+    };
+}
+
+// Play shotgun fire sound
+function playShotgunFireSound() {
+    if (!soundEnabled) return;
+    
+    const shotgunSound = document.createElement('audio');
+    shotgunSound.volume = 0.5; // Slightly louder than other weapons
+    
+    shotgunSound.src = 'assets/sounds/Shotgun sfx/shotgun_fire.wav';
+    
+    shotgunSound.play().catch(e => {
+        console.warn('Could not play shotgun fire sound:', e);
+    });
+    
+    shotgunSound.onended = () => {
+        shotgunSound.remove();
+    };
+}
+
+// Play shotgun reload sound
+function playShotgunReloadSound() {
+    if (!soundEnabled) return;
+    
+    const reloadSound = document.createElement('audio');
+    reloadSound.volume = 0.4;
+    
+    reloadSound.src = 'assets/sounds/Shotgun sfx/shotgun_reload.wav';
+    
+    reloadSound.play().catch(e => {
+        console.warn('Could not play shotgun reload sound:', e);
+    });
+    
     reloadSound.onended = () => {
         reloadSound.remove();
     };
